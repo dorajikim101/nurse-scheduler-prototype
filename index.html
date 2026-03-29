@@ -606,8 +606,15 @@
       staff.forEach(s => {
         const totalRest = s.assignedOFF + s.assignedAL;
         const targetRest = (s.goals.OFF || 0) + (s.goals.AL || 0);
+        const totalWorked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
         s.negativeOff = Math.max(0, targetRest - totalRest);
         s.goals.WORK = meta.length - (s.goals.OFF || 0) - (s.goals.AL || 0);
+
+        if (totalWorked > s.goals.WORK) {
+          let extra = totalWorked - s.goals.WORK;
+          s.negativeOff += extra;
+          s.goals.WORK = totalWorked;
+        }
       });
 
       const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons, generation };
@@ -637,7 +644,7 @@
       html += '</tr></thead><tbody>';
 
       result.staff.forEach(s => {
-        const goalText = `OFF:${s.goals.OFF} AL:${s.goals.AL || 0} WORK:${s.goals.WORK || 0} D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N}`;
+        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0} WORK:${s.goals.WORK || 0}`;
         const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL} -OFF:${s.negativeOff || 0}`;
         const rowStyle = s.kind === 'support' ? ' style="background:#f9fafb"' : '';
         html += `<tr${rowStyle}>

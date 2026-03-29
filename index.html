@@ -536,6 +536,45 @@
       return warnings;
     }
 
+    function assignNightBlocks(staff, schedule, meta, config, bottomSIds) {
+      const nightStaff = staff.filter(s => s.profile.canN !== false && s.role !== 'HN');
+      for (let i = 0; i < meta.length - 1; i++) {
+        const m1 = meta[i];
+        const m2 = meta[i + 1];
+        const day1 = m1.day;
+        const day2 = m2.day;
+        let nCount1 = staff.filter(s => schedule[s.id][day1] === 'N').length;
+        let nCount2 = staff.filter(s => schedule[s.id][day2] === 'N').length;
+        while (nCount1 < 2 || nCount2 < 2) {
+          let candidates = nightStaff.filter(s => {
+            if (schedule[s.id][day1] || schedule[s.id][day2]) return false;
+            if (!canAssign(s, 'N', day1, schedule, meta, config, bottomSIds)) return false;
+            schedule[s.id][day1] = 'N';
+            const ok2 = canAssign(s, 'N', day2, schedule, meta, config, bottomSIds);
+            schedule[s.id][day1] = '';
+            return ok2;
+          });
+          const dedicated = candidates.filter(s => s.profile.dedicatedNight && s.assignedN < s.goals.N);
+          if (dedicated.length) candidates = dedicated;
+          candidates.sort((a,b) => {
+            const aScore = (a.profile.dedicatedNight ? -20 : 0) + a.assignedN + a.id * 0.01;
+            const bScore = (b.profile.dedicatedNight ? -20 : 0) + b.assignedN + b.id * 0.01;
+            return aScore - bScore;
+          });
+          const chosen = candidates[0];
+          if (!chosen) break;
+          mark(schedule, chosen, day1, 'N');
+          mark(schedule, chosen, day2, 'N');
+          const d3 = meta[i + 2]?.day;
+          const d4 = meta[i + 3]?.day;
+          if (d3 && !schedule[chosen.id][d3]) mark(schedule, chosen, d3, 'OFF');
+          if (d4 && !schedule[chosen.id][d4]) mark(schedule, chosen, d4, 'OFF');
+          nCount1 = staff.filter(s => schedule[s.id][day1] === 'N').length;
+          nCount2 = staff.filter(s => schedule[s.id][day2] === 'N').length;
+        }
+      }
+    }
+
     function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
       const reasons = { fixedOff: 0, hnRule: 0, supportRole: 0, cannotS: 0, cannotN: 0, goalCap: 0, nightRest: 0, eToD: 0, avoid: 0, nStreak: 0 };
       staff.forEach(s => {
@@ -593,6 +632,8 @@
         });
       });
 
+      assignNightBlocks(staff, schedule, meta, config, bottomSIds);
+
       for (const m of meta) {
         for (const s of staff) {
           if (schedule[s.id][m.day]) continue;
@@ -606,7 +647,7 @@
 
         const req = { ...m.req };
         const assigned = { D: [], S: [], E: [], N: [] };
-        for (const code of ['N','E','S','D']) {
+        for (const code of ['E','S','D']) {
           while (assigned[code].length < req[code]) {
             let candidates = staff.filter(s => canAssign(s, code, m.day, schedule, meta, config, bottomSIds));
             if (code === 'N') {
@@ -638,7 +679,13 @@
           }
         }
 
-        staff.forEach(s => { if (!schedule[s.id][m.day]) mark(schedule, s, m.day, 'OFF'); });
+        staff.forEach(s => {
+          if (!schedule[s.id][m.day]) {
+            const workedStreak = consecutiveWorkedDays(schedule, s.id, m.day);
+            if (workedStreak >= 4) mark(schedule, s, m.day, 'OFF');
+            else mark(schedule, s, m.day, 'OFF');
+          }
+        });
 
         ['D','S','E','N'].forEach(code => {
           const members = staff.filter(s => schedule[s.id][m.day] === code).map(s => s.id);

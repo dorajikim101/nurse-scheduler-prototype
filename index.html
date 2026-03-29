@@ -77,7 +77,39 @@ function scoreCandidate(staff,code,day,schedule){let score=staff.id*0.01; if(sta
 function assignMonthlyGoals(staff,meta){const totalDays=meta.length, offBase=baseOffCount(meta); staff.forEach(s=>{s.goals.OFF=offBase; s.goals.연=s.profile.leaveQuota||0; s.goals.WORK=Math.max(0,totalDays-s.goals.OFF-s.goals.연); if(s.role==='HN'){s.goals.D=s.goals.WORK;s.goals.E=0;s.goals.S=0;s.goals.N=0;} else if(s.name==='임수영'){s.goals.N=2;s.goals.E=Math.max(0,s.goals.WORK-2);s.goals.D=0;s.goals.S=0;} else if(s.name==='임윤정'){s.goals.N=2;s.goals.D=Math.max(0,s.goals.WORK-2);s.goals.E=0;s.goals.S=0;} else if(s.profile.dedicatedNight){s.goals.N=Math.min(14,s.goals.WORK);s.goals.D=0;s.goals.E=0;s.goals.S=0;} else {const remain=Math.max(0,s.goals.WORK-s.goals.N); if(s.profile.nonNightMain==='E'){s.goals.E=Math.floor(remain*0.6);s.goals.D=remain-s.goals.E;s.goals.S=0;} else if(s.profile.nonNightMain==='D'){s.goals.D=Math.floor(remain*0.6);s.goals.E=remain-s.goals.D;s.goals.S=0;} else if(s.profile.nonNightMain==='S'&&s.profile.canS){s.goals.S=Math.floor(remain*0.35);s.goals.D=Math.floor((remain-s.goals.S)*0.5);s.goals.E=remain-s.goals.S-s.goals.D;} else {s.goals.D=Math.floor(remain*0.45);s.goals.E=remain-s.goals.D;s.goals.S=0;}}});}
 function resetAssigned(staff){staff.forEach(s=>{s.assignedD=0;s.assignedS=0;s.assignedE=0;s.assignedN=0;s.assignedOFF=0;s.assigned연=0;s.negativeOff=0;});}
 function assignFixedOff(staff,schedule,meta){meta.forEach(m=>staff.forEach(s=>{const fixed=blockedByFixedRule(s,m); if(fixed&&!schedule[s.id][m.day]) mark(schedule,s,m.day,fixed);}));}
-function assignNightBlocks(staff,schedule,meta){const nightStaff=staff.filter(s=>s.profile.canN!==false&&s.role!=='HN'); for(let i=0;i<meta.length-1;i++){const m1=meta[i],m2=meta[i+1],d1=m1.day,d2=m2.day; while(coverageForDay(staff,schedule,d1,m1).N<2&&coverageForDay(staff,schedule,d2,m2).N<2){ let candidates=nightStaff.filter(s=>!schedule[s.id][d1]&&!schedule[s.id][d2]); candidates=candidates.filter(s=>{ if(!canAssign(s,'N',d1,schedule,meta)) return false; const y1=prevShift(schedule,s.id,d1,1); if(y1==='E') return false; return true; }); const dedicated=candidates.filter(s=>s.profile.dedicatedNight&&s.assignedN<s.goals.N); if(dedicated.length) candidates=dedicated; const fixedPair=candidates.filter(s=>(s.name==='임수영'||s.name==='임윤정')&&s.assignedN<2); if(fixedPair.length) candidates=fixedPair; candidates.sort((a,b)=>(a.assignedN+(a.profile.dedicatedNight?-5:0)+a.id*0.01)-(b.assignedN+(b.profile.dedicatedNight?-5:0)+b.id*0.01)); const chosen=candidates[0]; if(!chosen) break; mark(schedule,chosen,d1,'N'); mark(schedule,chosen,d2,'N'); const d3=meta[i+2]?.day,d4=meta[i+3]?.day; if(d3&&!schedule[chosen.id][d3]) mark(schedule,chosen,d3,'OFF'); if(d4&&!schedule[chosen.id][d4]) mark(schedule,chosen,d4,'OFF'); } } }
+function canAssignNightPair(person, day1, day2, schedule, meta){
+  const m1=meta.find(m=>m.day===day1), m2=meta.find(m=>m.day===day2);
+  if(!m1 || !m2) return false;
+  if(schedule[person.id][day1] || schedule[person.id][day2]) return false;
+  if(person.role==='HN' || !person.profile.canN) return false;
+  if(person.request.avoid['N'] && (person.request.avoid['N'].has(day1) || person.request.avoid['N'].has(day2))) return false;
+  const fixed1=blockedByFixedRule(person,m1), fixed2=blockedByFixedRule(person,m2);
+  if(fixed1 || fixed2) return false;
+  const y1=prevShift(schedule,person.id,day1,1);
+  if(y1==='E' || y1==='N') return false;
+  return true;
+}
+function assignNightBlocks(staff,schedule,meta){
+  const nightStaff=staff.filter(s=>s.profile.canN!==false&&s.role!=='HN');
+  for(let i=0;i<meta.length-1;i++){
+    const m1=meta[i],m2=meta[i+1],d1=m1.day,d2=m2.day;
+    while(coverageForDay(staff,schedule,d1,m1).N<2&&coverageForDay(staff,schedule,d2,m2).N<2){
+      let candidates=nightStaff.filter(s=>canAssignNightPair(s,d1,d2,schedule,meta));
+      const dedicated=candidates.filter(s=>s.profile.dedicatedNight&&s.assignedN<s.goals.N);
+      if(dedicated.length) candidates=dedicated;
+      const fixedPair=candidates.filter(s=>(s.name==='임수영'||s.name==='임윤정')&&s.assignedN<2);
+      if(fixedPair.length) candidates=fixedPair;
+      candidates.sort((a,b)=>(a.assignedN+(a.profile.dedicatedNight?-5:0)+a.id*0.01)-(b.assignedN+(b.profile.dedicatedNight?-5:0)+b.id*0.01));
+      const chosen=candidates[0];
+      if(!chosen) break;
+      mark(schedule,chosen,d1,'N');
+      mark(schedule,chosen,d2,'N');
+      const d3=meta[i+2]?.day,d4=meta[i+3]?.day;
+      if(d3&&!schedule[chosen.id][d3]) mark(schedule,chosen,d3,'OFF');
+      if(d4&&!schedule[chosen.id][d4]) mark(schedule,chosen,d4,'OFF');
+    }
+  }
+}
 function assignPriorityStaff(staff,schedule,meta){staff.forEach(s=>{ if(s.role==='HN'){ meta.forEach(m=>{ if(!schedule[s.id][m.day]&&dayHasRoom(staff,schedule,m.day,'D',m)&&canAssign(s,'D',m.day,schedule,meta)) mark(schedule,s,m.day,'D'); }); }}); staff.forEach(s=>{ if(!['임수영','임윤정'].includes(s.name)) return; const main=s.name==='임수영'?'E':'D'; meta.forEach(m=>{ if(!schedule[s.id][m.day]&&dayHasRoom(staff,schedule,m.day,main,m)&&canAssign(s,main,m.day,schedule,meta)) mark(schedule,s,m.day,main); }); }); }
 function fillRemaining(staff,schedule,meta){for(const m of meta){ for(const code of ['D','S','E']){ while(dayHasRoom(staff,schedule,m.day,code,m)){ let candidates=staff.filter(s=>canAssign(s,code,m.day,schedule,meta)); if(code==='S') candidates=candidates.filter(s=>s.profile.canS); candidates.sort((a,b)=>scoreCandidate(a,code,m.day,schedule)-scoreCandidate(b,code,m.day,schedule)); const chosen=candidates[0]; if(!chosen) break; mark(schedule,chosen,m.day,code);} } staff.forEach(s=>{ if(!schedule[s.id][m.day]){ if(s.assignedD+s.assignedS+s.assignedE+s.assignedN < s.goals.WORK) mark(schedule,s,m.day,'연'); else mark(schedule,s,m.day,'OFF'); } }); }}
 function attemptSwap(staff,schedule,meta,day,needCode){const m=meta.find(x=>x.day===day); let free=staff.filter(s=>!schedule[s.id][day]&&canAssign(s,needCode,day,schedule,meta)); if(needCode==='S') free=free.filter(s=>s.profile.canS); if(free.length){ free.sort((a,b)=>scoreCandidate(a,needCode,day,schedule)-scoreCandidate(b,needCode,day,schedule)); mark(schedule,free[0],day,needCode); return true; } const occupied=staff.filter(s=>['D','S','E','OFF','연'].includes(schedule[s.id][day])); for(const occ of occupied){ const from=schedule[occ.id][day]; if(from===needCode) continue; if(occ.name==='임수영'&&needCode==='D') continue; if(occ.name==='임윤정'&&needCode==='E') continue; unmark(schedule,occ,day,from); if(canAssign(occ,needCode,day,schedule,meta)){ mark(schedule,occ,day,needCode); return true; } mark(schedule,occ,day,from);} return false; }

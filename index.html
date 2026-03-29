@@ -553,7 +553,6 @@
     }
 
     function assignMainShiftPatterns(staff, schedule, meta, config, bottomSIds) {
-      // 1) head nurse first: all non-Thu/Sun days prefer D
       for (const s of staff) {
         if (s.role !== 'HN') continue;
         for (const m of meta) {
@@ -564,7 +563,6 @@
         }
       }
 
-      // 2) strict main-shift staff next
       for (const s of staff) {
         if (s.role === 'HN' || s.profile.dedicatedNight) continue;
         const main = s.profile.nonNightMain || s.profile.shiftMain;
@@ -640,7 +638,6 @@
       }
     }
 
-    function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
     function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
       const reasons = { fixedOff: 0, hnRule: 0, supportRole: 0, cannotS: 0, cannotN: 0, goalCap: 0, nightRest: 0, eToD: 0, avoid: 0, nStreak: 0 };
       staff.forEach(s => {

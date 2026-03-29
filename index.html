@@ -507,6 +507,18 @@
       return c;
     }
 
+    function dayHasRoom(staff, schedule, day, code, metaDay) {
+      const c = coverageForDay(staff, schedule, day, metaDay);
+      if (code === 'N') return c.N < 2;
+      if (code === 'E') return c.E < metaDay.req.E;
+      if (code === 'S') return c.S < metaDay.req.S;
+      if (code === 'D') {
+        if (metaDay.req.S === 1) return c.DLike < (metaDay.req.D + metaDay.req.S);
+        return c.D < metaDay.req.D;
+      }
+      return true;
+    }
+
     function nightStreak(schedule, staffId, day) {
       let streak = 0;
       for (let d = day; d >= 1; d--) {
@@ -543,11 +555,11 @@
         if (!main || main === 'mixed' || main === 'N') continue;
         for (const m of meta) {
           if (schedule[s.id][m.day]) continue;
-          if (main === 'D' && canAssign(s, 'D', m.day, schedule, meta, config, bottomSIds)) {
+          if (main === 'D' && dayHasRoom(staff, schedule, m.day, 'D', m) && canAssign(s, 'D', m.day, schedule, meta, config, bottomSIds)) {
             mark(schedule, s, m.day, 'D');
-          } else if (main === 'E' && canAssign(s, 'E', m.day, schedule, meta, config, bottomSIds)) {
+          } else if (main === 'E' && dayHasRoom(staff, schedule, m.day, 'E', m) && canAssign(s, 'E', m.day, schedule, meta, config, bottomSIds)) {
             mark(schedule, s, m.day, 'E');
-          } else if (main === 'S' && s.profile.canS && canAssign(s, 'S', m.day, schedule, meta, config, bottomSIds)) {
+          } else if (main === 'S' && s.profile.canS && dayHasRoom(staff, schedule, m.day, 'S', m) && canAssign(s, 'S', m.day, schedule, meta, config, bottomSIds)) {
             mark(schedule, s, m.day, 'S');
           }
           const worked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
@@ -583,6 +595,7 @@
         let nCount1 = staff.filter(s => schedule[s.id][day1] === 'N').length;
         let nCount2 = staff.filter(s => schedule[s.id][day2] === 'N').length;
         while (nCount1 < 2 || nCount2 < 2) {
+          if (!dayHasRoom(staff, schedule, day1, 'N', m1) || !dayHasRoom(staff, schedule, day2, 'N', m2)) break;
           let candidates = nightStaff.filter(s => {
             if (schedule[s.id][day1] || schedule[s.id][day2]) return false;
             if (!canAssign(s, 'N', day1, schedule, meta, config, bottomSIds)) return false;
@@ -720,6 +733,7 @@
             candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m, generation, schedule) - scoreCandidate(b, code, m.day, topSeniorIds, m, generation, schedule));
             const chosen = candidates[0];
             if (!chosen) break;
+            if (!dayHasRoom(staff, schedule, m.day, code, m)) break;
             mark(schedule, chosen, m.day, code);
             assigned[code].push(chosen.id);
           }

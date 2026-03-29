@@ -243,7 +243,7 @@
             alQuota: 0,
             canN: !isSupport,
           },
-          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0 },
+          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0, WORK: 0 },
           assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
           negativeOff: 0,
         };
@@ -376,23 +376,67 @@
       const offBase = baseOffCount(meta);
       staff.forEach((s, idx) => {
         s.goals.OFF = offBase;
-        s.goals.D = s.role === 'HN' ? Math.floor(totalDays * 0.62) : defaultD;
-        s.goals.S = idx >= size - 5 ? defaultS : 0;
+        s.goals.AL = s.profile.alQuota || 0;
+        s.goals.WORK = totalDays - s.goals.OFF - s.goals.AL;
+        if (s.goals.WORK < 0) s.goals.WORK = 0;
+
+        s.goals.D = s.role === 'HN' ? Math.min(s.goals.WORK, Math.floor(totalDays * 0.62)) : defaultD;
+        s.goals.S = idx >= size - 5 ? Math.min(defaultS, s.goals.WORK) : 0;
         s.goals.E = s.role === 'HN' ? 0 : defaultE;
-        if (s.kind === 'support') {
-          s.goals.D = 3;
-          s.goals.S = 6;
-          s.goals.E = 0;
-          s.goals.N = 0;
-          s.goals.OFF = offBase;
-        }
+
         if (s.profile.dedicatedNight) {
-          s.goals.N = 14;
+          s.goals.N = Math.min(14, s.goals.WORK);
           s.goals.D = 0;
           s.goals.S = 0;
           s.goals.E = 0;
         }
-        s.goals.AL = s.profile.alQuota || 0;
+
+        let remain = s.goals.WORK - s.goals.N;
+        if (remain < 0) remain = 0;
+
+        if (s.role === 'HN') {
+          s.goals.D = remain;
+          s.goals.S = 0;
+          s.goals.E = 0;
+        } else if (!s.profile.dedicatedNight) {
+          const main = s.profile.shiftMain;
+          s.goals.D = 0;
+          s.goals.S = s.profile.canS ? s.goals.S : 0;
+          s.goals.E = 0;
+
+          if (main === 'D') {
+            s.goals.D = Math.floor(remain * 0.6);
+            s.goals.E = remain - s.goals.D - s.goals.S;
+          } else if (main === 'E') {
+            s.goals.E = Math.floor(remain * 0.55);
+            s.goals.D = remain - s.goals.E - s.goals.S;
+          } else if (main === 'S' && s.profile.canS) {
+            s.goals.S = Math.max(s.goals.S, Math.floor(remain * 0.35));
+            s.goals.D = Math.floor((remain - s.goals.S) * 0.5);
+            s.goals.E = remain - s.goals.S - s.goals.D;
+          } else {
+            s.goals.D = Math.floor(remain * 0.4);
+            s.goals.E = remain - s.goals.D - s.goals.S;
+          }
+
+          if (s.goals.E < 0) s.goals.E = 0;
+          if (s.goals.D < 0) s.goals.D = 0;
+
+          let used = s.goals.D + s.goals.S + s.goals.E + s.goals.N;
+          while (used > s.goals.WORK) {
+            if (s.goals.E > 0) s.goals.E--;
+            else if (s.goals.D > 0) s.goals.D--;
+            else if (s.goals.S > 0) s.goals.S--;
+            used = s.goals.D + s.goals.S + s.goals.E + s.goals.N;
+          }
+          while (used < s.goals.WORK) {
+            if (main === 'D') s.goals.D++;
+            else if (main === 'E') s.goals.E++;
+            else if (main === 'S' && s.profile.canS) s.goals.S++;
+            else s.goals.E++;
+            used = s.goals.D + s.goals.S + s.goals.E + s.goals.N;
+          }
+        }
       });
     }
 
@@ -560,10 +604,10 @@
       }
 
       staff.forEach(s => {
-        const totalWorked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
         const totalRest = s.assignedOFF + s.assignedAL;
         const targetRest = (s.goals.OFF || 0) + (s.goals.AL || 0);
         s.negativeOff = Math.max(0, targetRest - totalRest);
+        s.goals.WORK = meta.length - (s.goals.OFF || 0) - (s.goals.AL || 0);
       });
 
       const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons, generation };
@@ -593,7 +637,7 @@
       html += '</tr></thead><tbody>';
 
       result.staff.forEach(s => {
-        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0}`;
+        const goalText = `OFF:${s.goals.OFF} AL:${s.goals.AL || 0} WORK:${s.goals.WORK || 0} D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N}`;
         const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL} -OFF:${s.negativeOff || 0}`;
         const rowStyle = s.kind === 'support' ? ' style="background:#f9fafb"' : '';
         html += `<tr${rowStyle}>
@@ -686,7 +730,7 @@
     }
 
     function parseGoalText(text) {
-      const goal = { D:0, S:0, E:0, N:0, OFF:0, AL:0 };
+      const goal = { D:0, S:0, E:0, N:0, OFF:0, AL:0, WORK:0 };
       String(text).split(/\s+/).forEach(token => {
         const [k,v] = token.split(':');
         if (goal[k] !== undefined) goal[k] = Number(v || 0);

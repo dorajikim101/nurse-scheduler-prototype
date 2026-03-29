@@ -374,14 +374,14 @@
       if (staff.preferred === code) score -= 5;
       if (staff.profile.shiftMain === code) score -= 8;
       if (staff.profile.nonNightMain === code && code !== 'N') score -= 10;
-      if (staff.profile.strictMain && staff.profile.nonNightMain && code !== 'N' && code !== staff.profile.nonNightMain) score += 18;
+      if (staff.profile.strictMain && staff.profile.nonNightMain && code !== 'N' && code !== staff.profile.nonNightMain) score += 80;
       if (staff.profile.dedicatedNight && code === 'N') score -= 20;
       if (staff.profile.dedicatedNight && code !== 'N') score += 30;
       if (staff.kind === 'support' && (code === 'D' || code === 'S')) score -= 6;
       if (staff.kind === 'support' && metaDay && metaDay.req.S === 1 && code === 'S') score -= 10;
       if (staff.request.prefer[code] && staff.request.prefer[code].has(day)) score -= 10;
       if (topSeniorIds.has(staff.id)) score -= 1;
-      if (staff.role === 'HN' && code === 'D') score -= 30;
+      if (staff.role === 'HN' && code === 'D') score -= 100;
       if (code === 'N') score += staff.assignedN * 10;
 
       if (schedule) {
@@ -435,10 +435,14 @@
         if (s.name === '임수영') {
           s.profile.nonNightMain = 'E';
           s.profile.strictMain = true;
+          s.profile.canS = false;
+          s.goals.N = 2;
         }
         if (s.name === '임윤정') {
           s.profile.nonNightMain = 'D';
           s.profile.strictMain = true;
+          s.profile.canS = false;
+          s.goals.N = 2;
         }
         if (s.profile.dedicatedNight) {
           s.goals.N = Math.min(14, s.goals.WORK);
@@ -549,87 +553,94 @@
     }
 
     function assignMainShiftPatterns(staff, schedule, meta, config, bottomSIds) {
+      // 1) head nurse first: all non-Thu/Sun days prefer D
       for (const s of staff) {
-        if (s.profile.dedicatedNight || s.role === 'HN') continue;
+        if (s.role !== 'HN') continue;
+        for (const m of meta) {
+          if (schedule[s.id][m.day]) continue;
+          if (canAssign(s, 'D', m.day, schedule, meta, config, bottomSIds) && dayHasRoom(staff, schedule, m.day, 'D', m)) {
+            mark(schedule, s, m.day, 'D');
+          }
+        }
+      }
+
+      // 2) strict main-shift staff next
+      for (const s of staff) {
+        if (s.role === 'HN' || s.profile.dedicatedNight) continue;
         const main = s.profile.nonNightMain || s.profile.shiftMain;
         if (!main || main === 'mixed' || main === 'N') continue;
         for (const m of meta) {
           if (schedule[s.id][m.day]) continue;
-          if (main === 'D' && dayHasRoom(staff, schedule, m.day, 'D', m) && canAssign(s, 'D', m.day, schedule, meta, config, bottomSIds)) {
-            mark(schedule, s, m.day, 'D');
-          } else if (main === 'E' && dayHasRoom(staff, schedule, m.day, 'E', m) && canAssign(s, 'E', m.day, schedule, meta, config, bottomSIds)) {
-            mark(schedule, s, m.day, 'E');
-          } else if (main === 'S' && s.profile.canS && dayHasRoom(staff, schedule, m.day, 'S', m) && canAssign(s, 'S', m.day, schedule, meta, config, bottomSIds)) {
-            mark(schedule, s, m.day, 'S');
-          }
-          const worked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
-          if (worked >= Math.floor((s.goals.WORK || 0) * (s.profile.strictMain ? 0.8 : 0.55))) break;
-        }
-      }
-    }
-
-    function assignPreferredOffBlocks(staff, schedule, meta) {
-      for (const s of staff) {
-        let placed = 0;
-        for (let i = 0; i < meta.length; i++) {
-          const day = meta[i].day;
-          if (schedule[s.id][day]) continue;
-          const streak = consecutiveWorkedDays(schedule, s.id, day);
-          const prev = prevShift(schedule, s.id, day, 1);
-          const prev2 = prevShift(schedule, s.id, day, 2);
-          if (streak >= 5 || (prev && prev !== 'OFF' && prev !== '연' && prev2 === 'OFF')) {
-            mark(schedule, s, day, 'OFF');
-            placed++;
+          if (!dayHasRoom(staff, schedule, m.day, main, m)) continue;
+          if (canAssign(s, main, m.day, schedule, meta, config, bottomSIds)) {
+            mark(schedule, s, m.day, main);
           }
         }
       }
     }
 
-    function assignNightBlocks(staff, schedule, meta, config, bottomSIds) {
-      const nightStaff = staff.filter(s => s.profile.canN !== false && s.role !== 'HN');
+    function attemptRepairDay(staff, schedule, meta, day, code, config, bottomSIds) {
+      const metaDay = meta.find(m => m.day === day);
+      if (!metaDay || !dayHasRoom(staff, schedule, day, code, metaDay)) return false;
 
-      // 1) every day: secure N coverage first
+      let candidates = staff.filter(s => !schedule[s.id][day] && canAssign(s, code, day, schedule, meta, config, bottomSIds));
+      if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN' && s.profile.canN !== false);
+      if (code === 'S') candidates = candidates.filter(s => s.profile.canS);
+      if (code === 'D' && metaDay.req.S === 1) {
+        // allow D/S total fill
+      }
+      if (candidates.length) {
+        candidates.sort((a,b) => scoreCandidate(a, code, day, new Set(staff.filter(x => x.profile.senior).map(x => x.id)), metaDay, 0, schedule) - scoreCandidate(b, code, day, new Set(staff.filter(x => x.profile.senior).map(x => x.id)), metaDay, 0, schedule));
+        mark(schedule, candidates[0], day, code);
+        return true;
+      }
+
+      // simple swap/reassign: move someone from another shift on same day if they can swap elsewhere later
+      const occupied = staff.filter(s => schedule[s.id][day] && !['OFF','연'].includes(schedule[s.id][day]));
+      for (const occ of occupied) {
+        const from = schedule[occ.id][day];
+        if (from === code) continue;
+        if (code === 'N' && occ.role === 'HN') continue;
+        schedule[occ.id][day] = '';
+        if (canAssign(occ, code, day, schedule, meta, config, bottomSIds)) {
+          mark(schedule, occ, day, code);
+          return true;
+        }
+        schedule[occ.id][day] = from;
+      }
+      return false;
+    }
+
+    function repairCoverage(staff, schedule, meta, config, bottomSIds) {
       for (const m of meta) {
-        let nCount = staff.filter(s => schedule[s.id][m.day] === 'N').length;
-        while (nCount < 2) {
-          let candidates = nightStaff.filter(s => {
-            if (schedule[s.id][m.day]) return false;
-            return canAssign(s, 'N', m.day, schedule, meta, config, bottomSIds);
-          });
-          const dedicated = candidates.filter(s => s.profile.dedicatedNight && s.assignedN < s.goals.N);
-          if (dedicated.length) candidates = dedicated;
-          candidates.sort((a,b) => {
-            const aScore = (a.profile.dedicatedNight ? -20 : 0) + a.assignedN + a.id * 0.01;
-            const bScore = (b.profile.dedicatedNight ? -20 : 0) + b.assignedN + b.id * 0.01;
-            return aScore - bScore;
-          });
-          const chosen = candidates[0];
-          if (!chosen) break;
-          mark(schedule, chosen, m.day, 'N');
-          nCount = staff.filter(s => schedule[s.id][m.day] === 'N').length;
-        }
-      }
-
-      // 2) then prefer turning single N into 2-blocks when possible
-      for (let i = 0; i < meta.length - 1; i++) {
-        const m1 = meta[i];
-        const m2 = meta[i + 1];
-        const day1 = m1.day;
-        const day2 = m2.day;
-        const day1Night = staff.filter(s => schedule[s.id][day1] === 'N');
-        for (const s of day1Night) {
-          if (schedule[s.id][day2]) continue;
-          if (!dayHasRoom(staff, schedule, day2, 'N', m2)) continue;
-          if (!canAssign(s, 'N', day2, schedule, meta, config, bottomSIds)) continue;
-          mark(schedule, s, day2, 'N');
-          const d3 = meta[i + 2]?.day;
-          const d4 = meta[i + 3]?.day;
-          if (d3 && !schedule[s.id][d3]) mark(schedule, s, d3, 'OFF');
-          if (d4 && !schedule[s.id][d4]) mark(schedule, s, d4, 'OFF');
+        let guard = 0;
+        while (guard < 20) {
+          guard++;
+          const c = coverageForDay(staff, schedule, m.day, m);
+          let changed = false;
+          if (c.N < 2) changed = attemptRepairDay(staff, schedule, meta, m.day, 'N', config, bottomSIds) || changed;
+          if (m.req.S === 1) {
+            const c2 = coverageForDay(staff, schedule, m.day, m);
+            while (c2.DLike < (m.req.D + m.req.S)) {
+              if (!(attemptRepairDay(staff, schedule, meta, m.day, 'D', config, bottomSIds) || attemptRepairDay(staff, schedule, meta, m.day, 'S', config, bottomSIds))) break;
+              changed = true;
+              const nx = coverageForDay(staff, schedule, m.day, m);
+              c2.DLike = nx.DLike;
+            }
+          } else {
+            const c3 = coverageForDay(staff, schedule, m.day, m);
+            if (c3.D < m.req.D) changed = attemptRepairDay(staff, schedule, meta, m.day, 'D', config, bottomSIds) || changed;
+            const c4 = coverageForDay(staff, schedule, m.day, m);
+            if (c4.E < m.req.E) changed = attemptRepairDay(staff, schedule, meta, m.day, 'E', config, bottomSIds) || changed;
+          }
+          const after = coverageForDay(staff, schedule, m.day, m);
+          const ok = after.N === 2 && (m.req.S === 1 ? after.DLike >= (m.req.D + m.req.S) : (after.D >= m.req.D && after.E >= m.req.E));
+          if (ok || !changed) break;
         }
       }
     }
 
+    function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
     function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
       const reasons = { fixedOff: 0, hnRule: 0, supportRole: 0, cannotS: 0, cannotN: 0, goalCap: 0, nightRest: 0, eToD: 0, avoid: 0, nStreak: 0 };
       staff.forEach(s => {
@@ -697,6 +708,7 @@
       assignNightBlocks(staff, schedule, meta, config, bottomSIds);
       assignPreferredOffBlocks(staff, schedule, meta);
       assignMainShiftPatterns(staff, schedule, meta, config, bottomSIds);
+      repairCoverage(staff, schedule, meta, config, bottomSIds);
 
       for (const m of meta) {
         for (const s of staff) {

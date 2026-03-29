@@ -168,17 +168,17 @@
 
     function buildSampleStaff() {
       const rows = [];
-      rows.push('1,1,HN,0,D,Thu|Sun,prefer:D:1|2|4');
-      rows.push('2,2,RN,4,D,,off:10|24');
-      rows.push('3,3,RN,4,E,,prefer:E:7|8');
-      rows.push('4,4,RN,4,D,,avoid:N:20|21');
-      rows.push('5,5,RN,5,E,,off:17');
-      rows.push('6,6,RN,5,,,' );
-      rows.push('7,7,RN,6,N,,prefer:N:13|14');
-      rows.push('8,8,RN,6,N,,off:3|4');
-      rows.push('9,9,RN,6,S,,prefer:S:1|2|3');
-      rows.push('10,10,RN,6,S,,off:11');
-      rows.push('11,11,RN,6,S,,avoid:E:28|29');
+      rows.push('1,CN이지아,HN,0,D,Thu|Sun,prefer:D:1|2|4');
+      rows.push('2,RN배장미,RN,6,E,,,');
+      rows.push('3,임수영,RN,2,E,,,');
+      rows.push('4,임윤정,RN,2,D,,,');
+      rows.push('5,서민경,RN,14,N,,prefer:N:1|2|3|4|5|6|7|8|9|10');
+      rows.push('6,양혜원,RN,6,E,,,');
+      rows.push('7,송아네스,RN,6,N,,,');
+      rows.push('8,박성희,RN,6,E,,,' );
+      rows.push('9,전효진,RN,6,S,,,');
+      rows.push('10,김겨울,RN,6,S,,,');
+      rows.push('11,권영선,RN,6,S,,,');
       return rows.join('\n');
     }
 
@@ -208,8 +208,9 @@
     function parseStaff(text) {
       return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
         const [id, name, role='RN', maxN='0', preferred='', blocked='', request=''] = line.split(',').map(v => (v || '').trim());
+        const personId = Number(id);
         return {
-          id: Number(id),
+          id: personId,
           name: name || id,
           role,
           maxN: Number(maxN || 0),
@@ -217,7 +218,12 @@
           blockedDays: blocked ? blocked.split('|').map(v => v.trim()).filter(Boolean) : [],
           requestRaw: request,
           request: parseRequest(request),
-          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0 },
+          profile: {
+            senior: personId <= 6,
+            shiftMain: preferred || '',
+            dedicatedNight: name === '서민경',
+          },
+          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0 },
           assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
         };
       }).sort((a,b) => a.id - b.id);
@@ -276,6 +282,7 @@
       if (code === 'D' && staff.goals.D && staff.assignedD >= staff.goals.D) return false;
       if (code === 'S' && staff.goals.S && staff.assignedS >= staff.goals.S) return false;
       if (code === 'E' && staff.goals.E && staff.assignedE >= staff.goals.E) return false;
+      if (staff.profile.dedicatedNight && code !== 'N' && code !== 'OFF' && code !== 'AL') return false;
 
       const y1 = prevShift(schedule, staff.id, day, 1);
       const y2 = prevShift(schedule, staff.id, day, 2);
@@ -318,6 +325,12 @@
         s.goals.D = s.role === 'HN' ? Math.floor(totalDays * 0.62) : defaultD;
         s.goals.S = idx >= size - 5 ? defaultS : 0;
         s.goals.E = s.role === 'HN' ? 0 : defaultE;
+        if (s.profile.dedicatedNight) {
+          s.goals.N = 14;
+          s.goals.D = 0;
+          s.goals.S = 0;
+          s.goals.E = 0;
+        }
         s.goals.OFF = totalDays - (s.goals.D + s.goals.S + s.goals.E + s.goals.N);
         if (s.goals.OFF < 0) s.goals.OFF = 0;
       });
@@ -468,8 +481,8 @@
       html += '</tr></thead><tbody>';
 
       result.staff.forEach(s => {
-        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF}`;
-        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF}`;
+        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0}`;
+        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL}`;
         html += `<tr>
           <td class="sticky name-col mono">${s.name}</td>
           <td class="sticky2 meta-col">${s.role}</td>
@@ -536,7 +549,7 @@
     }
 
     function parseGoalText(text) {
-      const goal = { D:0, S:0, E:0, N:0, OFF:0 };
+      const goal = { D:0, S:0, E:0, N:0, OFF:0, AL:0 };
       String(text).split(/\s+/).forEach(token => {
         const [k,v] = token.split(':');
         if (goal[k] !== undefined) goal[k] = Number(v || 0);

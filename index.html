@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>병동 간호사 근무 스케줄표 프로토타입</title>
+  <style>
+    :root {
+      --line: #cfcfcf;
+      --bg: #ffffff;
+      --panel: #f7f7f7;
+      --text: #222;
+      --muted: #666;
+      --sun: #fff1f1;
+      --sat: #f3f7ff;
+      --holiday: #fff5e8;
+      --warn-bg: rgba(220, 38, 38, 0.12);
+      --warn-text: #991b1b;
+      --ok: #067647;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .wrap { max-width: 1880px; margin: 0 auto; padding: 16px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    .grid { display: grid; grid-template-columns: 420px 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); padding: 12px; }
+    .section + .section { margin-top: 14px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select, textarea, button { font: inherit; }
+    input[type="number"], input[type="text"], textarea, select {
+      width: 100%; border: 1px solid #bbb; background: #fff; padding: 6px 8px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    button { border: 1px solid #999; background: #fff; padding: 8px 12px; cursor: pointer; }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    .hint { font-size: 12px; color: var(--muted); }
+    .status { white-space: pre-wrap; font-size: 13px; border: 1px solid var(--line); background: #fff; padding: 10px; min-height: 72px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); background: #fff; }
+    table { border-collapse: collapse; min-width: 1400px; width: max-content; background: #fff; }
+    th, td { border: 1px solid var(--line); text-align: center; padding: 4px 6px; min-width: 34px; height: 28px; }
+    thead th { position: sticky; top: 0; background: #f0f0f0; z-index: 3; }
+    th.sticky, td.sticky { position: sticky; left: 0; background: #fff; z-index: 2; }
+    th.sticky2, td.sticky2 { position: sticky; left: 90px; background: #fff; z-index: 2; }
+    th.sticky3, td.sticky3 { position: sticky; left: 150px; background: #fff; z-index: 2; }
+    th.sticky4, td.sticky4 { position: sticky; left: 230px; background: #fff; z-index: 2; }
+    th.sticky5, td.sticky5 { position: sticky; left: 290px; background: #fff; z-index: 2; }
+    .name-col { min-width: 90px; }
+    .meta-col { min-width: 60px; }
+    .goal-col { min-width: 80px; }
+    .request-col { min-width: 240px; text-align: left; }
+    .sun { background: var(--sun); }
+    .sat { background: var(--sat); }
+    .holiday { background: var(--holiday); }
+    .shift-D { background: #eef6ff; }
+    .shift-E { background: #f8f0ff; }
+    .shift-N { background: #f1f5f9; }
+    .shift-S { background: #fff8db; }
+    .shift-OFF, .shift-AL { background: #f7f7f7; }
+    .small { font-size: 11px; color: var(--muted); }
+    .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+    .legend span { border: 1px solid var(--line); padding: 2px 6px; background: #fff; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .warn-soft { background: var(--warn-bg) !important; color: var(--warn-text); }
+    .goal-input, .cell-select, .request-input { width: 100%; border: 0; background: transparent; text-align: center; padding: 2px; }
+    .request-input { text-align: left; background: #fff; border: 1px solid #ddd; padding: 4px 6px; }
+    .sticky input, .sticky2 input, .sticky3 input, .sticky4 input, .sticky5 input { background: #fff; }
+    .subtle { opacity: 0.78; }
+    .mini-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>병동 간호사 근무 스케줄표 프로토타입</h1>
+    <div class="hint">GitHub Pages 배포용 정적 HTML · 엑셀처럼 보는 월간 듀티표 · 목표치/리퀘스트 직접 수정 가능</div>
+
+    <div class="grid" style="margin-top: 14px;">
+      <div class="panel">
+        <div class="section">
+          <h2>기본 설정</h2>
+          <div class="row4">
+            <div><label>연도</label><input id="year" type="number" value="2026" /></div>
+            <div><label>월</label><input id="month" type="number" min="1" max="12" value="4" /></div>
+            <div><label>인원 수</label><input id="staffCount" type="number" value="11" /></div>
+            <div><label>공휴일(일자)</label><input id="holidays" type="text" value="" placeholder="예: 5,12" /></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>규칙</h2>
+          <div class="row4">
+            <div><label>연속 N 횟수</label><input id="nBlock" type="number" value="2" /></div>
+            <div><label>N 뒤 OFF 횟수</label><input id="offAfterN" type="number" value="2" /></div>
+            <div><label>S 가능 하위 인원 수</label><input id="sBottomCount" type="number" value="5" /></div>
+            <div><label>상위 연차 보호 인원</label><input id="seniorTopCount" type="number" value="4" /></div>
+          </div>
+          <div class="hint" style="margin-top:8px;">고정 규칙: E 다음날 D/S 금지 · 수간호사(1번)는 D만 가능, 목/일 OFF</div>
+        </div>
+
+        <div class="section">
+          <h2>인원 기본값</h2>
+          <div class="hint">형식: 번호,이름,role,maxN,preferred,blocked,request</div>
+          <textarea id="staffInput"></textarea>
+          <div class="mini-note">request 예시: off:5|12;prefer:D:1|2|3;avoid:N:18|19</div>
+        </div>
+
+        <div class="section">
+          <h2>참고 원칙</h2>
+          <div class="hint">
+            - 월/금: D3 E3 N2<br/>
+            - 화/수/목: D2 + S1 / E2 / N2<br/>
+            - 토: D3 E2 N2<br/>
+            - 일/공휴일: D2 E2 N2<br/>
+            - 3명 들어가는 주간조합에는 상위 4명 중 1명 포함<br/>
+            - 부족/초과 배정은 표와 커버리지에서 연하게 경고 표시
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="generateBtn">표 생성 / 다시 계산</button>
+          <button id="sampleBtn">샘플 불러오기</button>
+          <button id="saveBtn">현재 입력 JSON 저장</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel section">
+          <h2>결과 요약</h2>
+          <div id="status" class="status">아직 생성되지 않았습니다.</div>
+        </div>
+
+        <div class="panel section">
+          <h2>근무표</h2>
+          <div class="legend" style="margin-bottom:8px;">
+            <span class="shift-D">D</span>
+            <span class="shift-S">S</span>
+            <span class="shift-E">E</span>
+            <span class="shift-N">N</span>
+            <span class="shift-OFF">OFF</span>
+            <span class="shift-AL">AL</span>
+            <span class="warn-soft subtle">주의(부족/초과)</span>
+          </div>
+          <div id="tableWrap" class="table-wrap"></div>
+        </div>
+
+        <div class="panel section">
+          <h2>일자별 커버</h2>
+          <div id="coverageWrap" class="table-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    let appState = { result: null, config: null };
+
+    function buildSampleStaff() {
+      const rows = [];
+      rows.push('1,1,HN,0,D,Thu|Sun,prefer:D:1|2|4');
+      rows.push('2,2,RN,4,D,,off:10|24');
+      rows.push('3,3,RN,4,E,,prefer:E:7|8');
+      rows.push('4,4,RN,4,D,,avoid:N:20|21');
+      rows.push('5,5,RN,5,E,,off:17');
+      rows.push('6,6,RN,5,,,' );
+      rows.push('7,7,RN,6,N,,prefer:N:13|14');
+      rows.push('8,8,RN,6,N,,off:3|4');
+      rows.push('9,9,RN,6,S,,prefer:S:1|2|3');
+      rows.push('10,10,RN,6,S,,off:11');
+      rows.push('11,11,RN,6,S,,avoid:E:28|29');
+      return rows.join('\n');
+    }
+
+    function getDailyRequirement(date, holidaysSet) {
+      const dow = date.getDay();
+      const day = date.getDate();
+      const isHoliday = holidaysSet.has(day);
+      if (isHoliday) return { D: 2, S: 0, E: 2, N: 2, label: 'holiday' };
+      if (dow === 1 || dow === 5) return { D: 3, S: 0, E: 3, N: 2, label: 'mon-fri' };
+      if (dow === 2 || dow === 3 || dow === 4) return { D: 2, S: 1, E: 2, N: 2, label: 'midweek-s' };
+      if (dow === 6) return { D: 3, S: 0, E: 2, N: 2, label: 'sat' };
+      return { D: 2, S: 0, E: 2, N: 2, label: 'sun' };
+    }
+
+    function parseRequest(raw) {
+      const req = { off: new Set(), prefer: {}, avoid: {} };
+      if (!raw) return req;
+      raw.split(';').map(v => v.trim()).filter(Boolean).forEach(part => {
+        const seg = part.split(':').map(v => v.trim());
+        if (seg[0] === 'off' && seg[1]) seg[1].split('|').forEach(n => req.off.add(Number(n)));
+        if (seg[0] === 'prefer' && seg[1] && seg[2]) req.prefer[seg[1]] = new Set(seg[2].split('|').map(Number));
+        if (seg[0] === 'avoid' && seg[1] && seg[2]) req.avoid[seg[1]] = new Set(seg[2].split('|').map(Number));
+      });
+      return req;
+    }
+
+    function parseStaff(text) {
+      return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
+        const [id, name, role='RN', maxN='0', preferred='', blocked='', request=''] = line.split(',').map(v => (v || '').trim());
+        return {
+          id: Number(id),
+          name: name || id,
+          role,
+          maxN: Number(maxN || 0),
+          preferred,
+          blockedDays: blocked ? blocked.split('|').map(v => v.trim()).filter(Boolean) : [],
+          requestRaw: request,
+          request: parseRequest(request),
+          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0 },
+          assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
+        };
+      }).sort((a,b) => a.id - b.id);
+    }
+
+    function dayMeta(year, month, holidaysSet) {
+      const days = new Date(year, month, 0).getDate();
+      const list = [];
+      for (let d = 1; d <= days; d++) {
+        const date = new Date(year, month - 1, d);
+        list.push({ day: d, dow: date.getDay(), dowName: weekdayNames[date.getDay()], req: getDailyRequirement(date, holidaysSet), isHoliday: holidaysSet.has(d) });
+      }
+      return list;
+    }
+
+    function initSchedule(staff, meta) {
+      const schedule = {};
+      staff.forEach(s => { schedule[s.id] = {}; meta.forEach(m => schedule[s.id][m.day] = ''); });
+      return schedule;
+    }
+
+    function blockedByFixedRule(staff, metaDay) {
+      if (staff.role === 'HN' && (metaDay.dowName === 'Thu' || metaDay.dowName === 'Sun')) return 'OFF';
+      if (staff.blockedDays.includes(metaDay.dowName)) return 'OFF';
+      if (staff.request.off.has(metaDay.day)) return 'OFF';
+      return null;
+    }
+
+    function prevShift(schedule, staffId, day, offset = 1) {
+      const prevDay = day - offset;
+      return prevDay < 1 ? '' : (schedule[staffId][prevDay] || '');
+    }
+
+    function mark(schedule, staff, day, code) {
+      schedule[staff.id][day] = code;
+      if (code === 'D') staff.assignedD++;
+      else if (code === 'S') staff.assignedS++;
+      else if (code === 'E') staff.assignedE++;
+      else if (code === 'N') staff.assignedN++;
+      else if (code === 'OFF') staff.assignedOFF++;
+      else if (code === 'AL') staff.assignedAL++;
+    }
+
+    function resetAssigned(staff) {
+      staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; });
+    }
+
+    function canAssign(staff, code, day, schedule, meta, config, bottomSIds) {
+      if (schedule[staff.id][day]) return false;
+      const metaDay = meta.find(m => m.day === day);
+      const fixed = blockedByFixedRule(staff, metaDay);
+      if (fixed && code !== fixed) return false;
+      if (staff.role === 'HN' && !['D','OFF','AL'].includes(code)) return false;
+      if (code === 'S' && !bottomSIds.has(staff.id)) return false;
+      if (code === 'N' && staff.assignedN >= staff.goals.N) return false;
+      if (code === 'D' && staff.goals.D && staff.assignedD >= staff.goals.D) return false;
+      if (code === 'S' && staff.goals.S && staff.assignedS >= staff.goals.S) return false;
+      if (code === 'E' && staff.goals.E && staff.assignedE >= staff.goals.E) return false;
+
+      const y1 = prevShift(schedule, staff.id, day, 1);
+      const y2 = prevShift(schedule, staff.id, day, 2);
+      const y3 = prevShift(schedule, staff.id, day, 3);
+
+      if ((code === 'D' || code === 'S') && y1 === 'E') return false;
+      if (code === 'D' && y1 === 'N') return false;
+      if (code === 'S' && y1 === 'N') return false;
+      if (code === 'E' && y1 === 'N') return false;
+      if (code === 'N') {
+        if (y1 === 'E') return false;
+        if (y1 === 'N' && y2 === 'N') return false;
+      }
+      if ((y1 === 'N' && y2 === 'N') && !['OFF','AL'].includes(code)) return false;
+      if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N' && !['OFF','AL'].includes(code)) return false;
+      if (staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false;
+      return true;
+    }
+
+    function scoreCandidate(staff, code, day, topSeniorIds) {
+      let score = 0;
+      score += staff.id * 0.01;
+      score += staff[`assigned${code}`] * 6 || 0;
+      if (staff.preferred === code) score -= 5;
+      if (staff.request.prefer[code] && staff.request.prefer[code].has(day)) score -= 10;
+      if (topSeniorIds.has(staff.id)) score -= 1;
+      if (staff.role === 'HN' && code === 'D') score -= 30;
+      if (code === 'N') score += staff.assignedN * 10;
+      return score;
+    }
+
+    function assignMonthlyGoals(staff, meta) {
+      const totals = { D: 0, S: 0, E: 0, N: 0 };
+      meta.forEach(m => { totals.D += m.req.D; totals.S += m.req.S; totals.E += m.req.E; totals.N += m.req.N; });
+      const size = staff.length;
+      const defaultD = Math.floor(totals.D / size);
+      const defaultS = Math.floor(totals.S / size);
+      const defaultE = Math.floor(totals.E / size);
+      const totalDays = meta.length;
+      staff.forEach((s, idx) => {
+        s.goals.D = s.role === 'HN' ? Math.floor(totalDays * 0.62) : defaultD;
+        s.goals.S = idx >= size - 5 ? defaultS : 0;
+        s.goals.E = s.role === 'HN' ? 0 : defaultE;
+        s.goals.OFF = totalDays - (s.goals.D + s.goals.S + s.goals.E + s.goals.N);
+        if (s.goals.OFF < 0) s.goals.OFF = 0;
+      });
+    }
+
+    function coverageForDay(staff, schedule, day) {
+      const c = { D:0, S:0, E:0, N:0, OFF:0, AL:0 };
+      staff.forEach(s => { const v = schedule[s.id][day]; if (c[v] !== undefined) c[v]++; });
+      return c;
+    }
+
+    function generateSchedule(config, keepGoals = false) {
+      const staff = parseStaff(config.staffInput);
+      const holidaysSet = new Set((config.holidays || '').split(',').map(v => Number(v.trim())).filter(Boolean));
+      const meta = dayMeta(config.year, config.month, holidaysSet);
+      const schedule = initSchedule(staff, meta);
+      const topSeniorIds = new Set(staff.slice(0, config.seniorTopCount).map(s => s.id));
+      const bottomSIds = new Set(staff.slice(-config.sBottomCount).map(s => s.id));
+      const logs = [];
+      assignMonthlyGoals(staff, meta);
+      if (keepGoals && appState.result) {
+        staff.forEach(s => {
+          const prev = appState.result.staff.find(x => x.id === s.id);
+          if (prev) s.goals = { ...prev.goals };
+        });
+      }
+      resetAssigned(staff);
+
+      meta.forEach(m => {
+        staff.forEach(s => {
+          const fixed = blockedByFixedRule(s, m);
+          if (fixed && !schedule[s.id][m.day]) mark(schedule, s, m.day, fixed);
+        });
+      });
+
+      for (const m of meta) {
+        for (const s of staff) {
+          if (schedule[s.id][m.day]) continue;
+          const y1 = prevShift(schedule, s.id, m.day, 1);
+          const y2 = prevShift(schedule, s.id, m.day, 2);
+          const y3 = prevShift(schedule, s.id, m.day, 3);
+          if (y1 === 'N' && canAssign(s, 'N', m.day, schedule, meta, config, bottomSIds)) { mark(schedule, s, m.day, 'N'); continue; }
+          if (y1 === 'N' && y2 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+          if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+        }
+
+        const req = { ...m.req };
+        const assigned = { D: [], S: [], E: [], N: [] };
+        for (const code of ['N','E','S','D']) {
+          while (assigned[code].length < req[code]) {
+            let candidates = staff.filter(s => canAssign(s, code, m.day, schedule, meta, config, bottomSIds));
+            if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN');
+            if (code === 'S') candidates = candidates.filter(s => bottomSIds.has(s.id));
+            if ((code === 'D' || code === 'S') && (req.D + req.S) >= 3) {
+              const alreadySenior = [...assigned.D, ...assigned.S].some(id => topSeniorIds.has(id));
+              if (!alreadySenior) {
+                const senior = candidates.filter(s => topSeniorIds.has(s.id));
+                if (senior.length) candidates = senior;
+              }
+            }
+            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds) - scoreCandidate(b, code, m.day, topSeniorIds));
+            const chosen = candidates[0];
+            if (!chosen) break;
+            mark(schedule, chosen, m.day, code);
+            assigned[code].push(chosen.id);
+          }
+        }
+
+        staff.forEach(s => { if (!schedule[s.id][m.day]) mark(schedule, s, m.day, 'OFF'); });
+
+        if ((req.D + req.S) >= 3) {
+          const team = staff.filter(s => ['D','S'].includes(schedule[s.id][m.day])).map(s => s.id);
+          if (!team.some(id => topSeniorIds.has(id))) logs.push(`경고: ${config.month}/${m.day} 주간 3인조에 상위 4명 미포함`);
+        }
+        const c = coverageForDay(staff, schedule, m.day);
+        ['D','S','E','N'].forEach(code => { if (c[code] !== req[code]) logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`); });
+      }
+
+      return { staff, meta, schedule, logs, holidaysSet };
+    }
+
+    function cellWarnClass(result, day, code) {
+      const m = result.meta.find(x => x.day === day);
+      const c = coverageForDay(result.staff, result.schedule, day);
+      return c[code] !== m.req[code] ? 'warn-soft subtle' : '';
+    }
+
+    function renderTable(result, month) {
+      let html = '<table><thead><tr>' +
+        '<th class="sticky name-col">번호</th>' +
+        '<th class="sticky2 meta-col">구분</th>' +
+        '<th class="sticky3 goal-col">월 목표</th>' +
+        '<th class="sticky4 goal-col">실적</th>' +
+        '<th class="sticky5 request-col">리퀘스트</th>';
+      result.meta.forEach(m => {
+        const cls = m.isHoliday ? 'holiday' : (m.dow === 0 ? 'sun' : m.dow === 6 ? 'sat' : '');
+        html += `<th class="${cls}">${m.day}<div class="small">${m.dowName[0]}</div></th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      result.staff.forEach(s => {
+        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF}`;
+        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF}`;
+        html += `<tr>
+          <td class="sticky name-col mono">${s.name}</td>
+          <td class="sticky2 meta-col">${s.role}</td>
+          <td class="sticky3 goal-col" data-id="${s.id}">
+            <input class="goal-input" data-goal-id="${s.id}" value="${goalText}" />
+          </td>
+          <td class="sticky4 goal-col small">${actualText}</td>
+          <td class="sticky5 request-col"><input class="request-input" data-request-id="${s.id}" value="${s.requestRaw || ''}" /></td>`;
+        result.meta.forEach(m => {
+          const v = result.schedule[s.id][m.day] || '';
+          const warn = ['D','S','E','N'].includes(v) ? cellWarnClass(result, m.day, v) : '';
+          html += `<td class="shift-${v} ${warn}"><select class="cell-select" data-id="${s.id}" data-day="${m.day}">
+            ${['','D','S','E','N','OFF','AL'].map(opt => `<option value="${opt}" ${opt===v?'selected':''}>${opt}</option>`).join('')}
+          </select></td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('tableWrap').innerHTML = html;
+      bindInteractiveTable();
+    }
+
+    function renderCoverage(result, month) {
+      let html = '<table><thead><tr><th>일자</th><th>요일</th><th>필요 D</th><th>필요 S</th><th>필요 E</th><th>필요 N</th><th>배정 D</th><th>배정 S</th><th>배정 E</th><th>배정 N</th><th>비고</th></tr></thead><tbody>';
+      result.meta.forEach(m => {
+        const c = coverageForDay(result.staff, result.schedule, m.day);
+        const issues = [];
+        ['D','S','E','N'].forEach(code => {
+          if (c[code] < m.req[code]) issues.push(`${code} 부족`);
+          if (c[code] > m.req[code]) issues.push(`${code} 초과`);
+        });
+        const cls = issues.length ? 'warn-soft subtle' : '';
+        html += `<tr class="${cls}"><td>${month}/${m.day}</td><td>${m.dowName}</td><td>${m.req.D}</td><td>${m.req.S}</td><td>${m.req.E}</td><td>${m.req.N}</td><td>${c.D}</td><td>${c.S}</td><td>${c.E}</td><td>${c.N}</td><td>${issues.join(', ')}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      document.getElementById('coverageWrap').innerHTML = html;
+    }
+
+    function renderStatus(result, config) {
+      const lines = [];
+      lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`);
+      lines.push(`인원: ${result.staff.length}명`);
+      lines.push(`주의: ${result.logs.length}건`);
+      if (result.logs.length) lines.push(result.logs.slice(0, 20).join('\n'));
+      lines.push('표의 목표치/리퀘스트/셀은 직접 수정 가능. 셀 수정 후 저장하거나 다시 계산하세요.');
+      document.getElementById('status').textContent = lines.join('\n');
+    }
+
+    function parseGoalText(text) {
+      const goal = { D:0, S:0, E:0, N:0, OFF:0 };
+      String(text).split(/\s+/).forEach(token => {
+        const [k,v] = token.split(':');
+        if (goal[k] !== undefined) goal[k] = Number(v || 0);
+      });
+      return goal;
+    }
+
+    function recalcAssignedFromSchedule(result) {
+      result.staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; });
+      result.staff.forEach(s => {
+        result.meta.forEach(m => {
+          const v = result.schedule[s.id][m.day];
+          if (v === 'D') s.assignedD++;
+          else if (v === 'S') s.assignedS++;
+          else if (v === 'E') s.assignedE++;
+          else if (v === 'N') s.assignedN++;
+          else if (v === 'OFF') s.assignedOFF++;
+          else if (v === 'AL') s.assignedAL++;
+        });
+      });
+    }
+
+    function bindInteractiveTable() {
+      document.querySelectorAll('.cell-select').forEach(el => {
+        el.addEventListener('change', e => {
+          const id = Number(e.target.dataset.id);
+          const day = Number(e.target.dataset.day);
+          appState.result.schedule[id][day] = e.target.value;
+          recalcAssignedFromSchedule(appState.result);
+          renderTable(appState.result, appState.config.month);
+          renderCoverage(appState.result, appState.config.month);
+          renderStatus(appState.result, appState.config);
+        });
+      });
+      document.querySelectorAll('.goal-input').forEach(el => {
+        el.addEventListener('change', e => {
+          const id = Number(e.target.dataset.goalId);
+          const s = appState.result.staff.find(x => x.id === id);
+          s.goals = parseGoalText(e.target.value);
+          renderStatus(appState.result, appState.config);
+        });
+      });
+      document.querySelectorAll('.request-input').forEach(el => {
+        el.addEventListener('change', e => {
+          const id = Number(e.target.dataset.requestId);
+          const s = appState.result.staff.find(x => x.id === id);
+          s.requestRaw = e.target.value;
+          s.request = parseRequest(e.target.value);
+          renderStatus(appState.result, appState.config);
+        });
+      });
+    }
+
+    function gatherConfig() {
+      return {
+        year: Number(document.getElementById('year').value),
+        month: Number(document.getElementById('month').value),
+        staffCount: Number(document.getElementById('staffCount').value),
+        holidays: document.getElementById('holidays').value,
+        nBlock: Number(document.getElementById('nBlock').value),
+        offAfterN: Number(document.getElementById('offAfterN').value),
+        sBottomCount: Number(document.getElementById('sBottomCount').value),
+        seniorTopCount: Number(document.getElementById('seniorTopCount').value),
+        staffInput: document.getElementById('staffInput').value,
+      };
+    }
+
+    function run(keepGoals = false) {
+      try {
+        const config = gatherConfig();
+        const result = generateSchedule(config, keepGoals);
+        appState = { result, config };
+        renderStatus(result, config);
+        renderTable(result, config.month);
+        renderCoverage(result, config.month);
+      } catch (err) {
+        document.getElementById('status').textContent = '오류: ' + err.message;
+      }
+    }
+
+    function exportCurrentJson() {
+      const data = JSON.stringify({ config: appState.config, staff: appState.result.staff.map(s => ({ id: s.id, name: s.name, role: s.role, goals: s.goals, requestRaw: s.requestRaw })) }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'nurse-schedule-config.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      document.getElementById('staffInput').value = buildSampleStaff();
+      run();
+    });
+    document.getElementById('generateBtn').addEventListener('click', () => run(true));
+    document.getElementById('saveBtn').addEventListener('click', exportCurrentJson);
+
+    document.getElementById('staffInput').value = buildSampleStaff();
+    run();
+  </script>
+</body>
+</html>

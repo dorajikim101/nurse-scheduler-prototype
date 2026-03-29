@@ -102,9 +102,9 @@
             <div><label>연속 N 횟수</label><input id="nBlock" type="number" value="2" /></div>
             <div><label>N 뒤 OFF 횟수</label><input id="offAfterN" type="number" value="2" /></div>
             <div><label>S 가능 하위 인원 수</label><input id="sBottomCount" type="number" value="5" /></div>
-            <div><label>상위 연차 보호 인원</label><input id="seniorTopCount" type="number" value="4" /></div>
+            <div><label>고연차 기준 인원</label><input id="seniorTopCount" type="number" value="6" /></div>
           </div>
-          <div class="hint" style="margin-top:8px;">고정 규칙: E 다음날 D/S 금지 · 수간호사(1번)는 D만 가능, 목/일 OFF</div>
+          <div class="hint" style="margin-top:8px;">고정 규칙: E 다음날 D/S 금지 · 수간호사(1번)는 D만 가능, 목/일 OFF · 1~6번을 고연차로 간주</div>
         </div>
 
         <div class="section">
@@ -121,7 +121,8 @@
             - 화/수/목: D2 + S1 / E2 / N2<br/>
             - 토: D3 E2 N2<br/>
             - 일/공휴일: D2 E2 N2<br/>
-            - 3명 들어가는 주간조합에는 상위 4명 중 1명 포함<br/>
+            - 모든 쉬프트에 가능하면 고연차 1명 포함(기본: 1~6번)<br/>
+            - 단, 주말 E는 저연차 2명만 배정돼도 허용<br/>
             - 부족/초과 배정은 표와 커버리지에서 연하게 경고 표시
           </div>
         </div>
@@ -289,6 +290,10 @@
       return true;
     }
 
+    function isWeekendMeta(metaDay) {
+      return metaDay.dow === 0 || metaDay.dow === 6 || metaDay.isHoliday;
+    }
+
     function scoreCandidate(staff, code, day, topSeniorIds) {
       let score = 0;
       score += staff.id * 0.01;
@@ -400,13 +405,14 @@
             let candidates = staff.filter(s => canAssign(s, code, m.day, schedule, meta, config, bottomSIds));
             if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN');
             if (code === 'S') candidates = candidates.filter(s => bottomSIds.has(s.id));
-            if ((code === 'D' || code === 'S') && (req.D + req.S) >= 3) {
-              const alreadySenior = [...assigned.D, ...assigned.S].some(id => topSeniorIds.has(id));
-              if (!alreadySenior) {
-                const senior = candidates.filter(s => topSeniorIds.has(s.id));
-                if (senior.length) candidates = senior;
-              }
+
+            const weekendEException = code === 'E' && isWeekendMeta(m);
+            const alreadySenior = assigned[code].some(id => topSeniorIds.has(id));
+            if (!weekendEException && !alreadySenior) {
+              const senior = candidates.filter(s => topSeniorIds.has(s.id));
+              if (senior.length) candidates = senior;
             }
+
             candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds) - scoreCandidate(b, code, m.day, topSeniorIds));
             const chosen = candidates[0];
             if (!chosen) break;
@@ -417,10 +423,13 @@
 
         staff.forEach(s => { if (!schedule[s.id][m.day]) mark(schedule, s, m.day, 'OFF'); });
 
-        if ((req.D + req.S) >= 3) {
-          const team = staff.filter(s => ['D','S'].includes(schedule[s.id][m.day])).map(s => s.id);
-          if (!team.some(id => topSeniorIds.has(id))) logs.push(`경고: ${config.month}/${m.day} 주간 3인조에 상위 4명 미포함`);
-        }
+        ['D','S','E','N'].forEach(code => {
+          const members = staff.filter(s => schedule[s.id][m.day] === code).map(s => s.id);
+          const weekendEException = code === 'E' && isWeekendMeta(m);
+          if (members.length > 0 && !weekendEException && !members.some(id => topSeniorIds.has(id))) {
+            logs.push(`주의: ${config.month}/${m.day} ${code} 고연차 미포함`);
+          }
+        });
         const c = coverageForDay(staff, schedule, m.day, m);
         if (m.req.S === 1) {
           if (c.DLike < (req.D + req.S)) logs.push(`주의: ${config.month}/${m.day} 주간부족 D/S ${c.D}+${c.S}/${req.D}+${req.S}`);

@@ -112,6 +112,7 @@
           <div class="hint">형식: 번호,이름,role,maxN,preferred,blocked,request</div>
           <textarea id="staffInput"></textarea>
           <div class="mini-note">request 예시: off:5|12;prefer:D:1|2|3;avoid:N:18|19</div>
+          <div class="mini-note">참고표 기반 추가 해석: 사람별 전담패턴(D/E/N/S), 추가 연차OFF(연), AN/지원행 분리 가능</div>
         </div>
 
         <div class="section">
@@ -123,6 +124,8 @@
             - 일/공휴일: D2 E2 N2<br/>
             - 모든 쉬프트에 가능하면 고연차 1명 포함(기본: 1~6번)<br/>
             - 단, 주말 E는 저연차 2명만 배정돼도 허용<br/>
+            - `연`은 추가 연차 OFF로 보고 별도 집계 가능<br/>
+            - 실제 참고표 기준: D와 S는 주간 총량으로 유연하게 대체 가능<br/>
             - 부족/초과 배정은 표와 커버리지에서 연하게 경고 표시
           </div>
         </div>

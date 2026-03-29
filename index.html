@@ -139,6 +139,7 @@
         <div class="actions">
           <button class="primary" id="generateBtn">표 생성 / 다시 계산</button>
           <button id="sampleBtn">샘플 불러오기</button>
+          <button id="clearBtn">클리어</button>
           <button id="saveBtn">현재 입력 JSON 저장</button>
         </div>
 
@@ -179,7 +180,8 @@
 
   <script>
     const weekdayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    let appState = { result: null, config: null };
+    let appState = { result: null, config: null, generation: 0 };
+    const STORAGE_KEY = 'nurseSchedulerPrototype.v2';
 
     function buildSampleStaff() {
       const rows = [];
@@ -253,6 +255,7 @@
           },
           goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0 },
           assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
+          negativeOff: 0,
         };
       }).sort((a,b) => a.id - b.id);
     }
@@ -296,7 +299,7 @@
     }
 
     function resetAssigned(staff) {
-      staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; });
+      staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; s.negativeOff = 0; });
     }
 
     function canAssign(staff, code, day, schedule, meta, config, bottomSIds) {
@@ -305,6 +308,7 @@
       const fixed = blockedByFixedRule(staff, metaDay);
       if (fixed && code !== fixed) return false;
       if (staff.role === 'HN' && !['D','OFF','AL'].includes(code)) return false;
+      if (staff.kind === 'support' && !['D','S','OFF','AL'].includes(code)) return false;
       if (code === 'S' && (!bottomSIds.has(staff.id) || staff.profile.canS === false)) return false;
       if (code === 'N' && (!staff.profile.canN || staff.assignedN >= staff.goals.N)) return false;
       if (code === 'D' && staff.goals.D && staff.assignedD >= staff.goals.D) return false;
@@ -329,6 +333,7 @@
         if (streak >= (staff.profile.maxConsecutiveN || 2)) return false;
       }
       if (code !== 'OFF' && code !== 'AL' && y1 === 'N') return false;
+      if (staff.kind === 'support' && (code === 'E' || code === 'N')) return false;
       if (staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false;
       return true;
     }
@@ -337,7 +342,7 @@
       return metaDay.dow === 0 || metaDay.dow === 6 || metaDay.isHoliday;
     }
 
-    function scoreCandidate(staff, code, day, topSeniorIds) {
+    function scoreCandidate(staff, code, day, topSeniorIds, metaDay = null) {
       let score = 0;
       score += staff.id * 0.01;
       score += staff[`assigned${code}`] * 6 || 0;
@@ -345,6 +350,8 @@
       if (staff.profile.shiftMain === code) score -= 8;
       if (staff.profile.dedicatedNight && code === 'N') score -= 20;
       if (staff.profile.dedicatedNight && code !== 'N') score += 30;
+      if (staff.kind === 'support' && (code === 'D' || code === 'S')) score -= 6;
+      if (staff.kind === 'support' && metaDay && metaDay.req.S === 1 && code === 'S') score -= 10;
       if (staff.request.prefer[code] && staff.request.prefer[code].has(day)) score -= 10;
       if (topSeniorIds.has(staff.id)) score -= 1;
       if (staff.role === 'HN' && code === 'D') score -= 30;
@@ -422,6 +429,35 @@
       return warnings;
     }
 
+    function collectShortageReasons(staff, day, code, schedule, meta, config, bottomSIds) {
+      const reasons = { fixedOff: 0, hnRule: 0, supportRole: 0, cannotS: 0, cannotN: 0, goalCap: 0, nightRest: 0, eToD: 0, avoid: 0, nStreak: 0 };
+      staff.forEach(s => {
+        if (schedule[s.id][day]) return;
+        const metaDay = meta.find(m => m.day === day);
+        const fixed = blockedByFixedRule(s, metaDay);
+        if (fixed && code !== fixed) { reasons.fixedOff++; return; }
+        if (s.role === 'HN' && !['D','OFF','AL'].includes(code)) { reasons.hnRule++; return; }
+        if (s.kind === 'support' && !['D','S','OFF','AL'].includes(code)) { reasons.supportRole++; return; }
+        if (code === 'S' && (!bottomSIds.has(s.id) || s.profile.canS === false)) { reasons.cannotS++; return; }
+        if (code === 'N' && (!s.profile.canN || s.assignedN >= s.goals.N)) { reasons.cannotN++; return; }
+        if (code === 'D' && s.goals.D && s.assignedD >= s.goals.D) { reasons.goalCap++; return; }
+        if (code === 'S' && s.goals.S && s.assignedS >= s.goals.S) { reasons.goalCap++; return; }
+        if (code === 'E' && s.goals.E && s.assignedE >= s.goals.E) { reasons.goalCap++; return; }
+        const y1 = prevShift(schedule, s.id, day, 1);
+        if ((code === 'D' || code === 'S') && y1 === 'E') { reasons.eToD++; return; }
+        if (code !== 'OFF' && code !== 'AL' && y1 === 'N') { reasons.nightRest++; return; }
+        if (s.request.avoid[code] && s.request.avoid[code].has(day)) { reasons.avoid++; return; }
+        if (code === 'N') {
+          let streak = 0;
+          for (let d = day - 1; d >= 1; d--) {
+            if (schedule[s.id][d] === 'N') streak++; else break;
+          }
+          if (streak >= (s.profile.maxConsecutiveN || 2)) { reasons.nStreak++; return; }
+        }
+      });
+      return Object.entries(reasons).filter(([,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', ');
+    }
+
     function generateSchedule(config, keepGoals = false) {
       const coreStaff = parseStaff(config.staffInput, 'core');
       const supportStaff = parseStaff(config.supportInput || '', 'support');
@@ -432,6 +468,7 @@
       const topSeniorIds = new Set(staff.filter(s => s.profile.senior).map(s => s.id));
       const bottomSIds = new Set(staff.filter(s => s.profile.canS).map(s => s.id));
       const logs = [];
+      const shortageReasons = [];
       assignMonthlyGoals(staff, meta);
       if (keepGoals && appState.result) {
         staff.forEach(s => {
@@ -474,7 +511,14 @@
               if (senior.length) candidates = senior;
             }
 
-            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds) - scoreCandidate(b, code, m.day, topSeniorIds));
+            if (code === 'D' || code === 'S') {
+              candidates = candidates.sort((a,b) => {
+                const aSupport = a.kind === 'support' ? 1 : 0;
+                const bSupport = b.kind === 'support' ? 1 : 0;
+                return aSupport - bSupport;
+              });
+            }
+            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m) - scoreCandidate(b, code, m.day, topSeniorIds, m));
             const chosen = candidates[0];
             if (!chosen) break;
             mark(schedule, chosen, m.day, code);
@@ -499,10 +543,21 @@
           if (c.D !== req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${req.D}`);
           if (c.S !== req.S) logs.push(`주의: ${config.month}/${m.day} S ${c.S}/${req.S}`);
         }
-        ['E','N'].forEach(code => { if (c[code] !== req[code]) logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`); });
+        ['E','N'].forEach(code => {
+          if (c[code] !== req[code]) {
+            logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`);
+            if (c[code] < req[code]) shortageReasons.push(`${config.month}/${m.day} ${code} 부족 사유 -> ${collectShortageReasons(staff, m.day, code, schedule, meta, config, bottomSIds)}`);
+          }
+        });
       }
 
-      const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet };
+      staff.forEach(s => {
+        const totalWorked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
+        const targetWorked = s.goals.D + s.goals.S + s.goals.E + s.goals.N;
+        s.negativeOff = Math.max(0, totalWorked - targetWorked);
+      });
+
+      const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons };
       result.ruleWarnings = collectRuleWarnings(result, config);
       return result;
     }
@@ -530,7 +585,7 @@
 
       result.staff.forEach(s => {
         const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0}`;
-        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL}`;
+        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL} -OFF:${s.negativeOff || 0}`;
         const rowStyle = s.kind === 'support' ? ' style="background:#f9fafb"' : '';
         html += `<tr${rowStyle}>
           <td class="sticky name-col mono">${s.name}</td>
@@ -608,6 +663,10 @@
         lines.push('--- 커버 주의 ---');
         lines.push(result.logs.slice(0, 12).join('\n'));
       }
+      if (result.shortageReasons && result.shortageReasons.length) {
+        lines.push('--- 부족 사유 ---');
+        lines.push(result.shortageReasons.slice(0, 12).join('\n'));
+      }
       if (result.ruleWarnings && result.ruleWarnings.length) {
         lines.push('--- 규칙 경고 ---');
         lines.push(result.ruleWarnings.slice(0, 12).join('\n'));
@@ -640,6 +699,29 @@
       });
     }
 
+    function persistProfiles() {
+      try {
+        const payload = {
+          staffInput: document.getElementById('staffInput').value,
+          supportInput: document.getElementById('supportInput').value,
+          config: appState.config,
+          profiles: appState.result ? appState.result.staff.map(s => ({ id: s.id, profile: s.profile, goals: s.goals, requestRaw: s.requestRaw })) : []
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (e) {}
+    }
+
+    function loadProfilesFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data.staffInput) document.getElementById('staffInput').value = data.staffInput;
+        if (data.supportInput) document.getElementById('supportInput').value = data.supportInput;
+        return true;
+      } catch (e) { return false; }
+    }
+
     function bindInteractiveTable() {
       document.querySelectorAll('.cell-select').forEach(el => {
         el.addEventListener('change', e => {
@@ -650,6 +732,7 @@
           renderTable(appState.result, appState.config.month);
           renderCoverage(appState.result, appState.config.month);
           renderStatus(appState.result, appState.config);
+          persistProfiles();
         });
       });
       document.querySelectorAll('.goal-input').forEach(el => {
@@ -658,6 +741,8 @@
           const s = appState.result.staff.find(x => x.id === id);
           s.goals = parseGoalText(e.target.value);
           renderStatus(appState.result, appState.config);
+          run(true);
+          persistProfiles();
         });
       });
       document.querySelectorAll('.request-input').forEach(el => {
@@ -667,6 +752,8 @@
           s.requestRaw = e.target.value;
           s.request = parseRequest(e.target.value);
           renderStatus(appState.result, appState.config);
+          run(true);
+          persistProfiles();
         });
       });
       document.querySelectorAll('.rule-field').forEach(el => {
@@ -681,6 +768,8 @@
           s.profile[field] = v;
           if (field === 'alQuota') s.goals.AL = Number(v || 0);
           renderStatus(appState.result, appState.config);
+          run(true);
+          persistProfiles();
         });
       });
     }
@@ -704,11 +793,12 @@
       try {
         const config = gatherConfig();
         const result = generateSchedule(config, keepGoals);
-        appState = { result, config };
+        appState = { result, config, generation: appState.generation + 1 };
         renderStatus(result, config);
         renderRulesEditor(result);
         renderTable(result, config.month);
         renderCoverage(result, config.month);
+        persistProfiles();
       } catch (err) {
         document.getElementById('status').textContent = '오류: ' + err.message;
       }
@@ -730,11 +820,23 @@
       document.getElementById('supportInput').value = buildSampleSupportStaff();
       run();
     });
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('staffInput').value = buildSampleStaff();
+      document.getElementById('supportInput').value = buildSampleSupportStaff();
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      document.getElementById('tableWrap').innerHTML = '';
+      document.getElementById('coverageWrap').innerHTML = '';
+      document.getElementById('rulesWrap').innerHTML = '';
+      document.getElementById('status').textContent = '클리어됨. 다시 표 생성하면 새로 계산합니다.';
+      appState = { result: null, config: null, generation: 0 };
+    });
     document.getElementById('generateBtn').addEventListener('click', () => run(true));
     document.getElementById('saveBtn').addEventListener('click', exportCurrentJson);
 
-    document.getElementById('staffInput').value = buildSampleStaff();
-    document.getElementById('supportInput').value = buildSampleSupportStaff();
+    if (!loadProfilesFromStorage()) {
+      document.getElementById('staffInput').value = buildSampleStaff();
+      document.getElementById('supportInput').value = buildSampleSupportStaff();
+    }
     run();
   </script>
 </body>

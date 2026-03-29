@@ -153,6 +153,11 @@
         </div>
 
         <div class="panel section">
+          <h2>월 총량 요약</h2>
+          <div id="capacityStatus" class="status">아직 계산되지 않았습니다.</div>
+        </div>
+
+        <div class="panel section">
           <h2>근무표</h2>
           <div class="legend" style="margin-bottom:8px;">
             <span class="shift-D">D</span>
@@ -332,7 +337,10 @@
         }
         if (streak >= (staff.profile.maxConsecutiveN || 2)) return false;
       }
-      if (code !== 'OFF' && code !== 'AL' && y1 === 'N') return false;
+      const y3 = prevShift(schedule, staff.id, day, 3);
+      if (code !== 'OFF' && code !== 'AL' && y1 === 'N') {
+        if (!(staff.profile.dedicatedNight && y2 === 'N' && y3 !== 'N')) return false;
+      }
       if (staff.kind === 'support' && (code === 'E' || code === 'N')) return false;
       if (staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false;
       return true;
@@ -543,9 +551,9 @@
           const y1 = prevShift(schedule, s.id, m.day, 1);
           const y2 = prevShift(schedule, s.id, m.day, 2);
           const y3 = prevShift(schedule, s.id, m.day, 3);
-          if (y1 === 'N' && y2 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+          if (y1 === 'N' && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
           if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
-          if (y1 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+          if (y1 === 'N' && !s.profile.dedicatedNight) { mark(schedule, s, m.day, 'OFF'); continue; }
         }
 
         const req = { ...m.req };
@@ -553,7 +561,11 @@
         for (const code of ['N','E','S','D']) {
           while (assigned[code].length < req[code]) {
             let candidates = staff.filter(s => canAssign(s, code, m.day, schedule, meta, config, bottomSIds));
-            if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN' && s.profile.canN !== false);
+            if (code === 'N') {
+              candidates = candidates.filter(s => s.role !== 'HN' && s.profile.canN !== false);
+              const dedicated = candidates.filter(s => s.profile.dedicatedNight && s.assignedN < s.goals.N);
+              if (dedicated.length) candidates = dedicated;
+            }
             if (code === 'S') candidates = candidates.filter(s => bottomSIds.has(s.id));
 
             const weekendEException = code === 'E' && isWeekendMeta(m);
@@ -686,6 +698,23 @@
       });
       html += '</tbody></table>';
       document.getElementById('rulesWrap').innerHTML = html;
+    }
+
+    function renderCapacitySummary(result, config) {
+      const totalRequired = result.meta.reduce((sum, m) => sum + m.req.D + m.req.S + m.req.E + m.req.N, 0);
+      const totalCapacity = result.staff.reduce((sum, s) => sum + (s.goals.WORK || 0), 0);
+      const shortage = totalRequired - totalCapacity;
+      const lines = [];
+      lines.push(`필요 총 포지션 수: ${totalRequired}`);
+      lines.push(`현재 인원 목표 OFF 기준 소화 가능 포지션 수: ${totalCapacity}`);
+      if (shortage > 0) {
+        lines.push(`주의: ${shortage}포지션 부족`);
+        document.getElementById('capacityStatus').className = 'status warn-soft';
+      } else {
+        lines.push(`충분 또는 여유: ${Math.abs(shortage)}포지션`);
+        document.getElementById('capacityStatus').className = 'status';
+      }
+      document.getElementById('capacityStatus').textContent = lines.join('\n');
     }
 
     function renderCoverage(result, month) {
@@ -853,6 +882,7 @@
         const result = generateSchedule(config, keepGoals);
         appState = { result, config, generation: appState.generation + 1 };
         renderStatus(result, config);
+        renderCapacitySummary(result, config);
         renderRulesEditor(result);
         renderTable(result, config.month);
         renderCoverage(result, config.month);

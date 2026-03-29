@@ -353,7 +353,12 @@
       return metaDay.dow === 0 || metaDay.dow === 6 || metaDay.isHoliday;
     }
 
-    function scoreCandidate(staff, code, day, topSeniorIds, metaDay = null) {
+    function seededNoise(seed, a, b) {
+      const x = Math.sin(seed * 997 + a * 131 + b * 17) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function scoreCandidate(staff, code, day, topSeniorIds, metaDay = null, generation = 0) {
       let score = 0;
       score += staff.id * 0.01;
       score += staff[`assigned${code}`] * 6 || 0;
@@ -367,6 +372,7 @@
       if (topSeniorIds.has(staff.id)) score -= 1;
       if (staff.role === 'HN' && code === 'D') score -= 30;
       if (code === 'N') score += staff.assignedN * 10;
+      score += seededNoise(generation + day, staff.id, code.charCodeAt(0)) * 3;
       return score;
     }
 
@@ -471,6 +477,7 @@
     }
 
     function generateSchedule(config, keepGoals = false) {
+      const generation = (appState.generation || 0) + 1;
       const coreStaff = parseStaff(config.staffInput, 'core');
       const supportStaff = parseStaff(config.supportInput || '', 'support');
       const staff = [...coreStaff, ...supportStaff];
@@ -530,7 +537,7 @@
                 return aSupport - bSupport;
               });
             }
-            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m) - scoreCandidate(b, code, m.day, topSeniorIds, m));
+            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m, generation) - scoreCandidate(b, code, m.day, topSeniorIds, m, generation));
             const chosen = candidates[0];
             if (!chosen) break;
             mark(schedule, chosen, m.day, code);
@@ -570,7 +577,7 @@
         s.negativeOff = Math.max(0, targetRest - totalRest);
       });
 
-      const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons };
+      const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons, generation };
       result.ruleWarnings = collectRuleWarnings(result, config);
       return result;
     }
@@ -669,6 +676,7 @@
     function renderStatus(result, config) {
       const lines = [];
       lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`);
+      lines.push(`조합 시도: ${result.generation || 1}`);
       lines.push(`인원: ${result.staff.length}명`);
       lines.push(`커버 주의: ${result.logs.length}건`);
       lines.push(`규칙 경고: ${(result.ruleWarnings || []).length}건`);

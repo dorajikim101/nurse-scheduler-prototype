@@ -123,7 +123,7 @@ function assignMonthlyGoals(staff,meta){ const totalDays=meta.length; const offB
 function canAssign(staff,code,day,schedule,meta,bottomSIds){ if(schedule[staff.id][day]) return false; const metaDay=meta.find(m=>m.day===day); const fixed=blockedByFixedRule(staff,metaDay); if(fixed && code!==fixed) return false; if(staff.role==='HN' && !['D','OFF','연'].includes(code)) return false; if(code==='S' && !staff.profile.canS) return false; if(code==='N' && !staff.profile.canN) return false; if(staff.name==='임수영' && code==='D') return false; if(staff.name==='임윤정' && code==='E') return false; const y1=prevShift(schedule,staff.id,day,1); if((code==='D'||code==='S') && y1==='E') return false; if(code==='D' && y1==='N') return false; if(code==='S' && y1==='N') return false; if(code==='E' && y1==='N') return false; if(code==='N'){ const nextDay=day+1; const nextMeta=meta.find(m=>m.day===nextDay); if(!nextMeta) return false; if(schedule[staff.id][nextDay]) return false; if(!dayHasRoom(staff,schedule,nextDay,'N',nextMeta)) return false; } if(staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false; return true; }
 function scoreCandidate(staff,code,day,schedule){ let score=staff.id*0.01; if(staff.profile.dedicatedNight && code==='N') score-=50; if(staff.role==='HN' && code==='D') score-=100; if(staff.profile.nonNightMain===code && code!=='N') score-=20; if(staff.profile.strictMain && staff.profile.nonNightMain && code!==staff.profile.nonNightMain && code!=='N') score+=100; const y1=prevShift(schedule,staff.id,day,1); if(code==='D' && y1==='E') score+=20; if(code==='E' && y1==='D') score-=3; if(code==='E' && prevShift(schedule,staff.id,day,2)==='N' && y1==='OFF') score-=10; if(code==='D' && prevShift(schedule,staff.id,day,2)==='N' && y1==='OFF') score+=8; if(consecutiveWorkedDays(schedule,staff.id,day)>=5) score+=15; return score; }
 function assignFixedOff(staff,schedule,meta){ meta.forEach(m=>staff.forEach(s=>{ const fixed=blockedByFixedRule(s,m); if(fixed && !schedule[s.id][m.day]) mark(schedule,s,m.day,fixed); })); }
-function assignNightBlocks(staff,schedule,meta){
+function assignNightBlocks(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('assignNightBlocks: staff not array');
   const nightStaff=staff.filter(s=>s.profile.canN!==false && s.role!=='HN');
   for(let i=0;i<meta.length-1;i++){
     const m1=meta[i], m2=meta[i+1], d1=m1.day, d2=m2.day;
@@ -142,7 +142,7 @@ function assignNightBlocks(staff,schedule,meta){
     }
   }
 }
-function assignPriorityStaff(staff,schedule,meta){
+function assignPriorityStaff(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('assignPriorityStaff: staff not array');
   for(const s of staff){
     if(s.role==='HN'){
       for(const m of meta){ if(!schedule[s.id][m.day] && dayHasRoom(staff,schedule,m.day,'D',m) && canAssign(s,'D',m.day,schedule,meta)) mark(schedule,s,m.day,'D'); }
@@ -157,7 +157,7 @@ function assignPriorityStaff(staff,schedule,meta){
     }
   }
 }
-function fillRemaining(staff,schedule,meta){
+function fillRemaining(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('fillRemaining: staff not array');
   for(const m of meta){
     for(const code of ['D','S','E']){
       while(dayHasRoom(staff,schedule,m.day,code,m)){
@@ -185,7 +185,7 @@ function attemptSwap(staff,schedule,meta,day,needCode){
   }
   return false;
 }
-function repairCoverage(staff,schedule,meta){
+function repairCoverage(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('repairCoverage: staff not array');
   for(const m of meta){
     let guard=0;
     while(guard<20){
@@ -215,7 +215,7 @@ function collectShortageReasons(staff,day,code,schedule,meta){ const reasons=[];
 function evaluateResult(result){ return (result.logs||[]).length*100 + (result.ruleWarnings||[]).length*30 + (result.staff||[]).reduce((a,s)=>a+((s.negativeOff||0)*10),0); }
 function generateSchedule(config,keepGoals=false,generationOverride=null){
   const generation=generationOverride ?? ((appState.generation||0)+1);
-  const staff=Array.isArray(parseStaff(config.staffInput)) ? parseStaff(config.staffInput) : [];
+  const staff=Array.isArray(parseStaff(config.staffInput)) ? parseStaff(config.staffInput) : []; if(!Array.isArray(staff)) throw new Error('generateSchedule: staff parse failed');
   const holidaysSet=new Set((config.holidays||'').split(',').map(v=>Number(v.trim())).filter(Boolean));
   const meta=dayMeta(config.year,config.month,holidaysSet);
   const schedule=initSchedule(staff,meta);

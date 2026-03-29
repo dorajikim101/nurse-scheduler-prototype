@@ -587,22 +587,14 @@
 
     function assignNightBlocks(staff, schedule, meta, config, bottomSIds) {
       const nightStaff = staff.filter(s => s.profile.canN !== false && s.role !== 'HN');
-      for (let i = 0; i < meta.length - 1; i++) {
-        const m1 = meta[i];
-        const m2 = meta[i + 1];
-        const day1 = m1.day;
-        const day2 = m2.day;
-        let nCount1 = staff.filter(s => schedule[s.id][day1] === 'N').length;
-        let nCount2 = staff.filter(s => schedule[s.id][day2] === 'N').length;
-        while (nCount1 < 2 || nCount2 < 2) {
-          if (!dayHasRoom(staff, schedule, day1, 'N', m1) || !dayHasRoom(staff, schedule, day2, 'N', m2)) break;
+
+      // 1) every day: secure N coverage first
+      for (const m of meta) {
+        let nCount = staff.filter(s => schedule[s.id][m.day] === 'N').length;
+        while (nCount < 2) {
           let candidates = nightStaff.filter(s => {
-            if (schedule[s.id][day1] || schedule[s.id][day2]) return false;
-            if (!canAssign(s, 'N', day1, schedule, meta, config, bottomSIds)) return false;
-            schedule[s.id][day1] = 'N';
-            const ok2 = canAssign(s, 'N', day2, schedule, meta, config, bottomSIds);
-            schedule[s.id][day1] = '';
-            return ok2;
+            if (schedule[s.id][m.day]) return false;
+            return canAssign(s, 'N', m.day, schedule, meta, config, bottomSIds);
           });
           const dedicated = candidates.filter(s => s.profile.dedicatedNight && s.assignedN < s.goals.N);
           if (dedicated.length) candidates = dedicated;
@@ -613,14 +605,27 @@
           });
           const chosen = candidates[0];
           if (!chosen) break;
-          mark(schedule, chosen, day1, 'N');
-          mark(schedule, chosen, day2, 'N');
+          mark(schedule, chosen, m.day, 'N');
+          nCount = staff.filter(s => schedule[s.id][m.day] === 'N').length;
+        }
+      }
+
+      // 2) then prefer turning single N into 2-blocks when possible
+      for (let i = 0; i < meta.length - 1; i++) {
+        const m1 = meta[i];
+        const m2 = meta[i + 1];
+        const day1 = m1.day;
+        const day2 = m2.day;
+        const day1Night = staff.filter(s => schedule[s.id][day1] === 'N');
+        for (const s of day1Night) {
+          if (schedule[s.id][day2]) continue;
+          if (!dayHasRoom(staff, schedule, day2, 'N', m2)) continue;
+          if (!canAssign(s, 'N', day2, schedule, meta, config, bottomSIds)) continue;
+          mark(schedule, s, day2, 'N');
           const d3 = meta[i + 2]?.day;
           const d4 = meta[i + 3]?.day;
-          if (d3 && !schedule[chosen.id][d3]) mark(schedule, chosen, d3, 'OFF');
-          if (d4 && !schedule[chosen.id][d4]) mark(schedule, chosen, d4, 'OFF');
-          nCount1 = staff.filter(s => schedule[s.id][day1] === 'N').length;
-          nCount2 = staff.filter(s => schedule[s.id][day2] === 'N').length;
+          if (d3 && !schedule[s.id][d3]) mark(schedule, s, d3, 'OFF');
+          if (d4 && !schedule[s.id][d4]) mark(schedule, s, d4, 'OFF');
         }
       }
     }

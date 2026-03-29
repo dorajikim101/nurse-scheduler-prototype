@@ -215,12 +215,48 @@ function collectShortageReasons(staff,day,code,schedule,meta){ const reasons=[];
 function evaluateResult(result){ return (result.logs||[]).length*100 + (result.ruleWarnings||[]).length*30 + (result.staff||[]).reduce((a,s)=>a+((s.negativeOff||0)*10),0); }
 function generateSchedule(config,keepGoals=false,generationOverride=null){
   const generation=generationOverride ?? ((appState.generation||0)+1);
-  const staff=parseStaff(config.staffInput); const holidaysSet=new Set((config.holidays||'').split(',').map(v=>Number(v.trim())).filter(Boolean)); const meta=dayMeta(config.year,config.month,holidaysSet); const schedule=initSchedule(staff,meta); const logs=[]; const shortageReasons=[];
-  assignMonthlyGoals(staff,meta); if(keepGoals&&appState.result){ staff.forEach(s=>{ const prev=appState.result.staff.find(x=>x.id===s.id); if(prev) { s.goals={...prev.goals}; s.profile={...prev.profile}; s.requestRaw=prev.requestRaw; s.request=parseRequest(prev.requestRaw||''); } }); }
-  resetAssigned(staff); assignFixedOff(staff,schedule,meta); assignNightBlocks(staff,schedule,meta); assignPriorityStaff(staff,schedule,meta); fillRemaining(staff,schedule,meta); repairCoverage(staff,schedule,meta);
-  meta.forEach(m=>{ const c=coverageForDay(staff,schedule,m.day,m); if(m.req.S===1){ if(c.DLike<(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`); if(c.DLike>(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간초과 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`); } else { if(c.D!==m.req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${m.req.D}`); } if(c.E!==m.req.E) logs.push(`주의: ${config.month}/${m.day} E ${c.E}/${m.req.E}`); if(c.N!==2) { logs.push(`주의: ${config.month}/${m.day} N ${c.N}/2`); if(c.N<2) shortageReasons.push(`${config.month}/${m.day} N 부족 사유 -> ${collectShortageReasons(staff,m.day,'N',schedule,meta)}`); } });
-  staff.forEach(s=>{ const totalRest=s.assignedOFF+s.assigned연; const targetRest=(s.goals.OFF||0)+(s.goals.연||0); const totalWorked=s.assignedD+s.assignedS+s.assignedE+s.assignedN; s.negativeOff=Math.max(0,targetRest-totalRest); s.goals.WORK=meta.length-(s.goals.OFF||0)-(s.goals.연||0); if(totalWorked>s.goals.WORK){ s.negativeOff += (totalWorked-s.goals.WORK); s.goals.WORK=totalWorked; } if(totalWorked<s.goals.WORK){ s.assigned연 += (s.goals.WORK-totalWorked); } });
-  const result={staff,meta,schedule,logs,holidaysSet,shortageReasons,generation}; result.ruleWarnings=collectRuleWarnings(result,config); return result;
+  const staff=Array.isArray(parseStaff(config.staffInput)) ? parseStaff(config.staffInput) : [];
+  const holidaysSet=new Set((config.holidays||'').split(',').map(v=>Number(v.trim())).filter(Boolean));
+  const meta=dayMeta(config.year,config.month,holidaysSet);
+  const schedule=initSchedule(staff,meta);
+  const logs=[];
+  const shortageReasons=[];
+  assignMonthlyGoals(staff,meta);
+  if(keepGoals&&appState.result&&Array.isArray(appState.result.staff)){
+    staff.forEach(s=>{ const prev=appState.result.staff.find(x=>x.id===s.id); if(prev){ s.goals={...prev.goals}; s.profile={...prev.profile}; s.requestRaw=prev.requestRaw; s.request=parseRequest(prev.requestRaw||''); } });
+  }
+  resetAssigned(staff);
+  assignFixedOff(staff,schedule,meta);
+  assignNightBlocks(staff,schedule,meta);
+  assignPriorityStaff(staff,schedule,meta);
+  fillRemaining(staff,schedule,meta);
+  repairCoverage(staff,schedule,meta);
+  meta.forEach(m=>{
+    const c=coverageForDay(staff,schedule,m.day,m);
+    if(m.req.S===1){
+      if(c.DLike<(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`);
+      if(c.DLike>(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간초과 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`);
+    } else {
+      if(c.D!==m.req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${m.req.D}`);
+    }
+    if(c.E!==m.req.E) logs.push(`주의: ${config.month}/${m.day} E ${c.E}/${m.req.E}`);
+    if(c.N!==2){
+      logs.push(`주의: ${config.month}/${m.day} N ${c.N}/2`);
+      if(c.N<2) shortageReasons.push(`${config.month}/${m.day} N 부족 사유 -> ${collectShortageReasons(staff,m.day,'N',schedule,meta)}`);
+    }
+  });
+  staff.forEach(s=>{
+    const totalRest=s.assignedOFF+s.assigned연;
+    const targetRest=(s.goals.OFF||0)+(s.goals.연||0);
+    const totalWorked=s.assignedD+s.assignedS+s.assignedE+s.assignedN;
+    s.negativeOff=Math.max(0,targetRest-totalRest);
+    s.goals.WORK=meta.length-(s.goals.OFF||0)-(s.goals.연||0);
+    if(totalWorked>s.goals.WORK){ s.negativeOff += (totalWorked-s.goals.WORK); s.goals.WORK=totalWorked; }
+    if(totalWorked<s.goals.WORK){ s.assigned연 += (s.goals.WORK-totalWorked); }
+  });
+  const result={staff,meta,schedule,logs,holidaysSet,shortageReasons,generation};
+  result.ruleWarnings=collectRuleWarnings(result,config);
+  return result;
 }
 function renderRulesEditor(result){ const arr=Array.isArray(result?.staff)?result.staff:[]; let html='<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>비N주력</th><th>엄격</th><th>canS</th><th>N전담</th><th>연 quota</th><th>canN</th></tr></thead><tbody>'; arr.forEach(s=>{ html += `<tr><td>${s.name}</td><td>${s.role}</td><td><select class="rule-field" data-id="${s.id}" data-field="senior"><option value="true" ${s.profile.senior?'selected':''}>Y</option><option value="false" ${!s.profile.senior?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="shiftMain">${['','D','S','E','N','mixed'].map(v=>`<option value="${v}" ${s.profile.shiftMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="nonNightMain">${['','D','E','S','mixed'].map(v=>`<option value="${v}" ${s.profile.nonNightMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="strictMain"><option value="true" ${s.profile.strictMain?'selected':''}>Y</option><option value="false" ${!s.profile.strictMain?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="canS"><option value="true" ${s.profile.canS?'selected':''}>Y</option><option value="false" ${!s.profile.canS?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="dedicatedNight"><option value="true" ${s.profile.dedicatedNight?'selected':''}>Y</option><option value="false" ${!s.profile.dedicatedNight?'selected':''}>N</option></select></td><td><input class="rule-field" data-id="${s.id}" data-field="leaveQuota" value="${s.profile.leaveQuota||0}" /></td><td><select class="rule-field" data-id="${s.id}" data-field="canN"><option value="true" ${s.profile.canN?'selected':''}>Y</option><option value="false" ${!s.profile.canN?'selected':''}>N</option></select></td></tr>`; }); html+='</tbody></table>'; document.getElementById('rulesWrap').innerHTML=html; }
 function cellWarnClass(result,day,code){ const m=result.meta.find(x=>x.day===day); const c=coverageForDay(result.staff,result.schedule,day,m); if(code==='N') return c.N!==2?'warn-soft':''; if((code==='D'||code==='S') && m.req.S===1) return c.DLike!==(m.req.D+m.req.S)?'warn-soft':''; return c[code]!==m.req[code]?'warn-soft':''; }

@@ -536,6 +536,23 @@
       return warnings;
     }
 
+    function assignPreferredOffBlocks(staff, schedule, meta) {
+      for (const s of staff) {
+        let placed = 0;
+        for (let i = 0; i < meta.length; i++) {
+          const day = meta[i].day;
+          if (schedule[s.id][day]) continue;
+          const streak = consecutiveWorkedDays(schedule, s.id, day);
+          const prev = prevShift(schedule, s.id, day, 1);
+          const prev2 = prevShift(schedule, s.id, day, 2);
+          if (streak >= 5 || (prev && prev !== 'OFF' && prev !== '연' && prev2 === 'OFF')) {
+            mark(schedule, s, day, 'OFF');
+            placed++;
+          }
+        }
+      }
+    }
+
     function assignNightBlocks(staff, schedule, meta, config, bottomSIds) {
       const nightStaff = staff.filter(s => s.profile.canN !== false && s.role !== 'HN');
       for (let i = 0; i < meta.length - 1; i++) {
@@ -633,6 +650,7 @@
       });
 
       assignNightBlocks(staff, schedule, meta, config, bottomSIds);
+      assignPreferredOffBlocks(staff, schedule, meta);
 
       for (const m of meta) {
         for (const s of staff) {

@@ -536,6 +536,26 @@
       return warnings;
     }
 
+    function assignMainShiftPatterns(staff, schedule, meta, config, bottomSIds) {
+      for (const s of staff) {
+        if (s.profile.dedicatedNight || s.role === 'HN') continue;
+        const main = s.profile.nonNightMain || s.profile.shiftMain;
+        if (!main || main === 'mixed' || main === 'N') continue;
+        for (const m of meta) {
+          if (schedule[s.id][m.day]) continue;
+          if (main === 'D' && canAssign(s, 'D', m.day, schedule, meta, config, bottomSIds)) {
+            mark(schedule, s, m.day, 'D');
+          } else if (main === 'E' && canAssign(s, 'E', m.day, schedule, meta, config, bottomSIds)) {
+            mark(schedule, s, m.day, 'E');
+          } else if (main === 'S' && s.profile.canS && canAssign(s, 'S', m.day, schedule, meta, config, bottomSIds)) {
+            mark(schedule, s, m.day, 'S');
+          }
+          const worked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
+          if (worked >= Math.floor((s.goals.WORK || 0) * (s.profile.strictMain ? 0.8 : 0.55))) break;
+        }
+      }
+    }
+
     function assignPreferredOffBlocks(staff, schedule, meta) {
       for (const s of staff) {
         let placed = 0;
@@ -651,6 +671,7 @@
 
       assignNightBlocks(staff, schedule, meta, config, bottomSIds);
       assignPreferredOffBlocks(staff, schedule, meta);
+      assignMainShiftPatterns(staff, schedule, meta, config, bottomSIds);
 
       for (const m of meta) {
         for (const s of staff) {

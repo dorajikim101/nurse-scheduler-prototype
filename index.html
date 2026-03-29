@@ -270,6 +270,16 @@
       return list;
     }
 
+    function baseOffCount(meta) {
+      let weekendCount = 0;
+      let legalHolidayExtra = 0;
+      meta.forEach(m => {
+        if (m.dow === 0 || m.dow === 6) weekendCount++;
+        else if (m.isHoliday) legalHolidayExtra++;
+      });
+      return weekendCount + legalHolidayExtra;
+    }
+
     function initSchedule(staff, meta) {
       const schedule = {};
       staff.forEach(s => { schedule[s.id] = {}; meta.forEach(m => schedule[s.id][m.day] = ''); });
@@ -367,7 +377,9 @@
       const defaultS = Math.floor(totals.S / size);
       const defaultE = Math.floor(totals.E / size);
       const totalDays = meta.length;
+      const offBase = baseOffCount(meta);
       staff.forEach((s, idx) => {
+        s.goals.OFF = offBase;
         s.goals.D = s.role === 'HN' ? Math.floor(totalDays * 0.62) : defaultD;
         s.goals.S = idx >= size - 5 ? defaultS : 0;
         s.goals.E = s.role === 'HN' ? 0 : defaultE;
@@ -376,6 +388,7 @@
           s.goals.S = 6;
           s.goals.E = 0;
           s.goals.N = 0;
+          s.goals.OFF = offBase;
         }
         if (s.profile.dedicatedNight) {
           s.goals.N = 14;
@@ -384,8 +397,6 @@
           s.goals.E = 0;
         }
         s.goals.AL = s.profile.alQuota || 0;
-        s.goals.OFF = totalDays - (s.goals.D + s.goals.S + s.goals.E + s.goals.N);
-        if (s.goals.OFF < 0) s.goals.OFF = 0;
       });
     }
 
@@ -553,8 +564,9 @@
 
       staff.forEach(s => {
         const totalWorked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
-        const targetWorked = s.goals.D + s.goals.S + s.goals.E + s.goals.N;
-        s.negativeOff = Math.max(0, totalWorked - targetWorked);
+        const totalRest = s.assignedOFF + s.assignedAL;
+        const targetRest = (s.goals.OFF || 0) + (s.goals.AL || 0);
+        s.negativeOff = Math.max(0, targetRest - totalRest);
       });
 
       const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons };

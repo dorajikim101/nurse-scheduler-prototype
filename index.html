@@ -5,279 +5,102 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>병동 간호사 근무 스케줄표 프로토타입</title>
   <style>
-    :root {
-      --line:#cfcfcf; --bg:#fff; --panel:#f7f7f7; --text:#222; --muted:#666;
-      --sun:#fff1f1; --sat:#f3f7ff; --holiday:#fff5e8; --warn:#991b1b; --warn-bg:rgba(220,38,38,.12);
-    }
+    :root { --line:#cfcfcf; --bg:#fff; --panel:#f7f7f7; --text:#222; --muted:#666; --sun:#fff1f1; --sat:#f3f7ff; --holiday:#fff5e8; --warn:#991b1b; --warn-bg:rgba(220,38,38,.12); }
     *{box-sizing:border-box} body{margin:0;font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.4}
-    .wrap{max-width:1880px;margin:0 auto;padding:16px}.grid{display:grid;grid-template-columns:420px 1fr;gap:16px;align-items:start}
-    .panel{background:var(--panel);border:1px solid var(--line);padding:12px}.section+.section{margin-top:14px} h1,h2{margin:0 0 10px}
-    input,select,textarea,button{font:inherit} input[type="number"],input[type="text"],textarea,select{width:100%;border:1px solid #bbb;background:#fff;padding:6px 8px}
-    textarea{min-height:90px;resize:vertical}.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    button{border:1px solid #999;background:#fff;padding:8px 12px;cursor:pointer}.primary{background:#111;color:#fff;border-color:#111}.hint,.small,.mini-note{font-size:12px;color:var(--muted)}
-    .status{white-space:pre-wrap;font-size:13px;border:1px solid var(--line);background:#fff;padding:10px;min-height:72px}.warn-soft{background:var(--warn-bg)!important;color:var(--warn)}
-    .table-wrap{overflow:auto;border:1px solid var(--line);background:#fff} table{border-collapse:collapse;min-width:1400px;width:max-content;background:#fff}
-    th,td{border:1px solid var(--line);text-align:center;padding:4px 6px;min-width:34px;height:28px} thead th{position:sticky;top:0;background:#f0f0f0;z-index:3}
-    th.sticky,td.sticky{position:sticky;left:0;background:#fff;z-index:2} th.sticky2,td.sticky2{position:sticky;left:90px;background:#fff;z-index:2}
-    th.sticky3,td.sticky3{position:sticky;left:150px;background:#fff;z-index:2} th.sticky4,td.sticky4{position:sticky;left:370px;background:#fff;z-index:2}
-    th.sticky5,td.sticky5{position:sticky;left:470px;background:#fff;z-index:2}.name-col{min-width:90px}.meta-col{min-width:60px}.goal-col{min-width:220px}.request-col{min-width:240px;text-align:left}
-    .sun{background:var(--sun)} .sat{background:var(--sat)} .holiday{background:var(--holiday)} .shift-D{background:#eef6ff}.shift-E{background:#f8f0ff}.shift-N{background:#f1f5f9}.shift-S{background:#fff8db}.shift-OFF,.shift-연{background:#f7f7f7}
-    .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}.legend span{border:1px solid var(--line);padding:2px 6px;background:#fff}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .goal-input,.cell-select,.request-input{width:100%;border:0;background:transparent;text-align:center;padding:2px}.goal-input{font-size:12px}.request-input{text-align:left;background:#fff;border:1px solid #ddd;padding:4px 6px}
+    .wrap{max-width:1880px;margin:0 auto;padding:16px}.grid{display:grid;grid-template-columns:420px 1fr;gap:16px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);padding:12px}.section+.section{margin-top:14px}
+    h1,h2{margin:0 0 10px} input,select,textarea,button{font:inherit} input[type="number"],input[type="text"],textarea,select{width:100%;border:1px solid #bbb;background:#fff;padding:6px 8px} textarea{min-height:90px;resize:vertical}
+    .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px} button{border:1px solid #999;background:#fff;padding:8px 12px;cursor:pointer}.primary{background:#111;color:#fff;border-color:#111}
+    .hint,.small,.mini-note{font-size:12px;color:var(--muted)} .status{white-space:pre-wrap;font-size:13px;border:1px solid var(--line);background:#fff;padding:10px;min-height:72px}.warn-soft{background:var(--warn-bg)!important;color:var(--warn)}
+    .table-wrap{overflow:auto;border:1px solid var(--line);background:#fff} table{border-collapse:collapse;min-width:1400px;width:max-content;background:#fff} th,td{border:1px solid var(--line);text-align:center;padding:4px 6px;min-width:34px;height:28px} thead th{position:sticky;top:0;background:#f0f0f0;z-index:3}
+    th.sticky,td.sticky{position:sticky;left:0;background:#fff;z-index:2} th.sticky2,td.sticky2{position:sticky;left:90px;background:#fff;z-index:2} th.sticky3,td.sticky3{position:sticky;left:150px;background:#fff;z-index:2} th.sticky4,td.sticky4{position:sticky;left:370px;background:#fff;z-index:2} th.sticky5,td.sticky5{position:sticky;left:470px;background:#fff;z-index:2}
+    .name-col{min-width:90px}.meta-col{min-width:60px}.goal-col{min-width:220px}.request-col{min-width:240px;text-align:left}.sun{background:var(--sun)}.sat{background:var(--sat)}.holiday{background:var(--holiday)}.shift-D{background:#eef6ff}.shift-E{background:#f8f0ff}.shift-N{background:#f1f5f9}.shift-S{background:#fff8db}.shift-OFF,.shift-연{background:#f7f7f7}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px}.legend span{border:1px solid var(--line);padding:2px 6px;background:#fff}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.goal-input,.cell-select,.request-input{width:100%;border:0;background:transparent;text-align:center;padding:2px}.goal-input{font-size:12px}.request-input{text-align:left;background:#fff;border:1px solid #ddd;padding:4px 6px}
     @media (max-width:1100px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>병동 간호사 근무 스케줄표 프로토타입</h1>
-    <div class="hint">새 엔진 버전 · NNOO 강제 · 전담 우선 · 정원 초과 금지 · 자동 검증 모드</div>
-    <div class="grid" style="margin-top:14px">
-      <div class="panel">
-        <div class="section">
-          <h2>기본 설정</h2>
-          <div class="row4">
-            <div><label>연도</label><input id="year" type="number" value="2026"></div>
-            <div><label>월</label><input id="month" type="number" min="1" max="12" value="4"></div>
-            <div><label>인원 수</label><input id="staffCount" type="number" value="11"></div>
-            <div><label>공휴일(일자)</label><input id="holidays" type="text" value="" placeholder="예: 5,12"></div>
-          </div>
-        </div>
-        <div class="section">
-          <h2>인원 기본값</h2>
-          <div class="hint">형식: 번호,이름,role,maxN,preferred,blocked,request</div>
-          <textarea id="staffInput"></textarea>
-          <div class="mini-note">request 예시: off:5|12;prefer:D:1|2|3;avoid:N:18|19</div>
-        </div>
-        <div class="actions">
-          <button class="primary" id="generateBtn">표 생성 / 다시 계산</button>
-          <button id="sampleBtn">샘플 불러오기</button>
-          <button id="clearBtn">클리어</button>
-          <button id="saveBtn">현재 입력 JSON 저장</button>
-        </div>
-        <div class="section">
-          <h2>사람별 규칙 편집</h2>
-          <div class="hint">비N주력/엄격/canN/canS/연 quota 조정 가능</div>
-          <div id="rulesWrap" class="table-wrap"></div>
+<div class="wrap">
+  <h1>병동 간호사 근무 스케줄표 프로토타입</h1>
+  <div class="hint">새 코어 엔진 버전 · 최소 규칙 기반</div>
+  <div class="grid" style="margin-top:14px">
+    <div class="panel">
+      <div class="section">
+        <h2>기본 설정</h2>
+        <div class="row4">
+          <div><label>연도</label><input id="year" type="number" value="2026"></div>
+          <div><label>월</label><input id="month" type="number" value="4"></div>
+          <div><label>인원 수</label><input id="staffCount" type="number" value="11"></div>
+          <div><label>공휴일(일자)</label><input id="holidays" type="text" value="" placeholder="예: 5,12"></div>
         </div>
       </div>
-      <div>
-        <div class="panel section"><h2>결과 요약</h2><div id="status" class="status">아직 생성되지 않았습니다.</div></div>
-        <div class="panel section"><h2>월 총량 요약</h2><div id="capacityStatus" class="status">아직 계산되지 않았습니다.</div></div>
-        <div class="panel section">
-          <h2>근무표</h2>
-          <div class="legend" style="margin-bottom:8px"><span class="shift-D">D</span><span class="shift-S">S</span><span class="shift-E">E</span><span class="shift-N">N</span><span class="shift-OFF">OFF</span><span class="shift-연">연</span><span class="warn-soft">주의</span></div>
-          <div id="tableWrap" class="table-wrap"></div>
-        </div>
-        <div class="panel section"><h2>일자별 커버</h2><div id="coverageWrap" class="table-wrap"></div></div>
+      <div class="section">
+        <h2>인원 기본값</h2>
+        <div class="hint">형식: 번호,이름,role,maxN,preferred,blocked,request</div>
+        <textarea id="staffInput"></textarea>
+        <div class="mini-note">request 예시: off:5|12;prefer:D:1|2|3;avoid:N:18|19</div>
       </div>
+      <div class="actions">
+        <button class="primary" id="generateBtn">표 생성 / 다시 계산</button>
+        <button id="sampleBtn">샘플 불러오기</button>
+        <button id="clearBtn">클리어</button>
+        <button id="saveBtn">현재 입력 JSON 저장</button>
+      </div>
+      <div class="section"><h2>사람별 규칙 편집</h2><div class="hint">비N주력/엄격/canN/canS/연 quota 조정 가능</div><div id="rulesWrap" class="table-wrap"></div></div>
+    </div>
+    <div>
+      <div class="panel section"><h2>결과 요약</h2><div id="status" class="status">아직 생성되지 않았습니다.</div></div>
+      <div class="panel section"><h2>월 총량 요약</h2><div id="capacityStatus" class="status">아직 계산되지 않았습니다.</div></div>
+      <div class="panel section"><h2>근무표</h2><div class="legend" style="margin-bottom:8px"><span class="shift-D">D</span><span class="shift-S">S</span><span class="shift-E">E</span><span class="shift-N">N</span><span class="shift-OFF">OFF</span><span class="shift-연">연</span></div><div id="tableWrap" class="table-wrap"></div></div>
+      <div class="panel section"><h2>일자별 커버</h2><div id="coverageWrap" class="table-wrap"></div></div>
     </div>
   </div>
+</div>
 <script>
 const weekdayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const STORAGE_KEY='nurseSchedulerPrototype.v3';
+const STORAGE_KEY='nurseSchedulerPrototype.v4';
 let appState={result:null,config:null,generation:0};
-
-function buildSampleStaff(){
-  return [
-    '1,CN이지아,HN,0,D,Thu|Sun,prefer:D:1|2|4',
-    '2,RN배장미,RN,6,E,,,',
-    '3,임수영,RN,2,E,,,',
-    '4,임윤정,RN,2,D,,,',
-    '5,서민경,RN,14,N,,prefer:N:1|2|3|4|5|6|7|8|9|10',
-    '6,양혜원,RN,6,E,,,',
-    '7,송아네스,RN,6,N,,,',
-    '8,박성희,RN,6,E,,,',
-    '9,전효진,RN,6,S,,,',
-    '10,김겨울,RN,6,S,,,',
-    '11,권영선,RN,6,S,,,'
-  ].join('\n');
-}
+function buildSampleStaff(){return ['1,CN이지아,HN,0,D,Thu|Sun,prefer:D:1|2|4','2,RN배장미,RN,6,E,,,','3,임수영,RN,2,E,,,','4,임윤정,RN,2,D,,,','5,서민경,RN,14,N,,prefer:N:1|2|3|4|5|6|7|8|9|10','6,양혜원,RN,6,E,,,','7,송아네스,RN,6,N,,,','8,박성희,RN,6,E,,,','9,전효진,RN,6,S,,,','10,김겨울,RN,6,S,,,','11,권영선,RN,6,S,,,'].join('\n');}
 function parseRequest(raw){const req={off:new Set(),prefer:{},avoid:{}}; if(!raw) return req; raw.split(';').map(v=>v.trim()).filter(Boolean).forEach(part=>{const seg=part.split(':').map(v=>v.trim()); if(seg[0]==='off'&&seg[1]) seg[1].split('|').forEach(n=>req.off.add(Number(n))); if(seg[0]==='prefer'&&seg[1]&&seg[2]) req.prefer[seg[1]]=new Set(seg[2].split('|').map(Number)); if(seg[0]==='avoid'&&seg[1]&&seg[2]) req.avoid[seg[1]]=new Set(seg[2].split('|').map(Number));}); return req;}
-function parseStaff(text){
-  return text.split(/\n+/).map(v=>v.trim()).filter(Boolean).map(line=>{
-    const [id,name,role='RN',maxN='0',preferred='',blocked='',request='']=line.split(',').map(v=>(v||'').trim());
-    const pid=Number(id);
-    const p={
-      id:pid,name,role,preferred,maxN:Number(maxN||0),blockedDays:blocked?blocked.split('|').map(v=>v.trim()).filter(Boolean):[],requestRaw:request,request:parseRequest(request),
-      profile:{senior:pid<=6,shiftMain:preferred||'',nonNightMain:preferred||'',strictMain:false,canS:pid>=9,canN:role!=='HN',dedicatedNight:name==='서민경',maxConsecutiveN:name==='서민경'?2:2,leaveQuota:0},
-      goals:{D:0,S:0,E:0,N:Number(maxN||0),OFF:0,연:0,WORK:0},assignedD:0,assignedS:0,assignedE:0,assignedN:0,assignedOFF:0,assigned연:0,negativeOff:0
-    };
-    if(name==='임수영'){p.profile.nonNightMain='E';p.profile.shiftMain='E';p.profile.strictMain=true;p.profile.canS=false;p.goals.N=2;}
-    if(name==='임윤정'){p.profile.nonNightMain='D';p.profile.shiftMain='D';p.profile.strictMain=true;p.profile.canS=false;p.goals.N=2;}
-    return p;
-  }).sort((a,b)=>a.id-b.id);
-}
-function getDailyRequirement(date, holidaysSet){ const dow=date.getDay(), day=date.getDate(), isHoliday=holidaysSet.has(day); if(isHoliday) return {D:2,S:0,E:2,N:2}; if(dow===1||dow===5) return {D:3,S:0,E:3,N:2}; if(dow===2||dow===3||dow===4) return {D:2,S:1,E:2,N:2}; if(dow===6) return {D:3,S:0,E:2,N:2}; return {D:2,S:0,E:2,N:2}; }
-function dayMeta(year,month,holidaysSet){ const days=new Date(year,month,0).getDate(); const meta=[]; for(let d=1; d<=days; d++){ const date=new Date(year,month-1,d); meta.push({day:d,dow:date.getDay(),dowName:weekdayNames[date.getDay()],isHoliday:holidaysSet.has(d),req:getDailyRequirement(date,holidaysSet)});} return meta; }
-function baseOffCount(meta){ let w=0,h=0; meta.forEach(m=>{ if(m.dow===0||m.dow===6) w++; else if(m.isHoliday) h++;}); return w+h; }
-function initSchedule(staff,meta){ const s={}; staff.forEach(p=>{ s[p.id]={}; meta.forEach(m=>s[p.id][m.day]='');}); return s; }
-function blockedByFixedRule(staff,metaDay){ if(staff.role==='HN'&&(metaDay.dowName==='Thu'||metaDay.dowName==='Sun')) return 'OFF'; if(staff.blockedDays.includes(metaDay.dowName)) return 'OFF'; if(staff.request.off.has(metaDay.day)) return 'OFF'; return null; }
-function prevShift(schedule,id,day,offset=1){ const d=day-offset; return d<1?'':(schedule[id][d]||''); }
-function mark(schedule,staff,day,code){ schedule[staff.id][day]=code; if(code==='D') staff.assignedD++; else if(code==='S') staff.assignedS++; else if(code==='E') staff.assignedE++; else if(code==='N') staff.assignedN++; else if(code==='OFF') staff.assignedOFF++; else if(code==='연') staff.assigned연++; }
-function unmark(schedule,staff,day,code){ schedule[staff.id][day]=''; if(code==='D') staff.assignedD--; else if(code==='S') staff.assignedS--; else if(code==='E') staff.assignedE--; else if(code==='N') staff.assignedN--; else if(code==='OFF') staff.assignedOFF--; else if(code==='연') staff.assigned연--; }
-function resetAssigned(staff){ staff.forEach(s=>{s.assignedD=0;s.assignedS=0;s.assignedE=0;s.assignedN=0;s.assignedOFF=0;s.assigned연=0;s.negativeOff=0;}); }
-function coverageForDay(staff,schedule,day,metaDay=null){ const c={D:0,S:0,E:0,N:0,OFF:0,연:0}; staff.forEach(s=>{ const v=schedule[s.id][day]; if(c[v]!==undefined) c[v]++;}); c.DLike=metaDay&&metaDay.req.S===1?c.D+c.S:c.D; return c; }
-function dayHasRoom(staff,schedule,day,code,metaDay){ const c=coverageForDay(staff,schedule,day,metaDay); if(code==='N') return c.N<2; if(code==='E') return c.E<metaDay.req.E; if(code==='S') return c.S<metaDay.req.S; if(code==='D') return metaDay.req.S===1 ? c.DLike<(metaDay.req.D+metaDay.req.S) : c.D<metaDay.req.D; return true; }
-function consecutiveWorkedDays(schedule,id,day){ let streak=0; for(let d=day-1; d>=1; d--){ const v=schedule[id][d]; if(v && v!=='OFF' && v!=='연') streak++; else break; } return streak; }
-function assignMonthlyGoals(staff,meta){ const totalDays=meta.length; const offBase=baseOffCount(meta); staff.forEach(s=>{ s.goals.OFF=offBase; s.goals.연=s.profile.leaveQuota||0; s.goals.WORK=Math.max(0,totalDays-s.goals.OFF-s.goals.연); if(s.role==='HN'){ s.goals.D=s.goals.WORK; s.goals.E=0; s.goals.S=0; s.goals.N=0; } else if(s.name==='임수영'){ s.goals.N=2; s.goals.E=Math.max(0,s.goals.WORK-2); s.goals.D=0; s.goals.S=0; } else if(s.name==='임윤정'){ s.goals.N=2; s.goals.D=Math.max(0,s.goals.WORK-2); s.goals.E=0; s.goals.S=0; } else if(s.profile.dedicatedNight){ s.goals.N=Math.min(14,s.goals.WORK); s.goals.D=0; s.goals.E=0; s.goals.S=0; } else { const remain=Math.max(0,s.goals.WORK-s.goals.N); if(s.profile.nonNightMain==='E'){ s.goals.E=Math.floor(remain*0.6); s.goals.D=remain-s.goals.E; s.goals.S=0; } else if(s.profile.nonNightMain==='D'){ s.goals.D=Math.floor(remain*0.6); s.goals.E=remain-s.goals.D; s.goals.S=0; } else if(s.profile.nonNightMain==='S' && s.profile.canS){ s.goals.S=Math.floor(remain*0.35); s.goals.D=Math.floor((remain-s.goals.S)*0.5); s.goals.E=remain-s.goals.S-s.goals.D; } else { s.goals.D=Math.floor(remain*0.45); s.goals.E=remain-s.goals.D; s.goals.S=0; } } }); }
-function canAssign(staff,code,day,schedule,meta,bottomSIds){ if(schedule[staff.id][day]) return false; const metaDay=meta.find(m=>m.day===day); const fixed=blockedByFixedRule(staff,metaDay); if(fixed && code!==fixed) return false; if(staff.role==='HN' && !['D','OFF','연'].includes(code)) return false; if(code==='S' && !staff.profile.canS) return false; if(code==='N' && !staff.profile.canN) return false; if(staff.name==='임수영' && code==='D') return false; if(staff.name==='임윤정' && code==='E') return false; const y1=prevShift(schedule,staff.id,day,1); if((code==='D'||code==='S') && y1==='E') return false; if(code==='D' && y1==='N') return false; if(code==='S' && y1==='N') return false; if(code==='E' && y1==='N') return false; if(code==='N'){ const nextDay=day+1; const nextMeta=meta.find(m=>m.day===nextDay); if(!nextMeta) return false; if(schedule[staff.id][nextDay]) return false; if(!dayHasRoom(staff,schedule,nextDay,'N',nextMeta)) return false; } if(staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false; return true; }
-function scoreCandidate(staff,code,day,schedule){ let score=staff.id*0.01; if(staff.profile.dedicatedNight && code==='N') score-=50; if(staff.role==='HN' && code==='D') score-=100; if(staff.profile.nonNightMain===code && code!=='N') score-=20; if(staff.profile.strictMain && staff.profile.nonNightMain && code!==staff.profile.nonNightMain && code!=='N') score+=100; const y1=prevShift(schedule,staff.id,day,1); if(code==='D' && y1==='E') score+=20; if(code==='E' && y1==='D') score-=3; if(code==='E' && prevShift(schedule,staff.id,day,2)==='N' && y1==='OFF') score-=10; if(code==='D' && prevShift(schedule,staff.id,day,2)==='N' && y1==='OFF') score+=8; if(consecutiveWorkedDays(schedule,staff.id,day)>=5) score+=15; return score; }
-function assignFixedOff(staff,schedule,meta){ meta.forEach(m=>staff.forEach(s=>{ const fixed=blockedByFixedRule(s,m); if(fixed && !schedule[s.id][m.day]) mark(schedule,s,m.day,fixed); })); }
-function assignNightBlocks(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('assignNightBlocks: staff not array');
-  const nightStaff=staff.filter(s=>s.profile.canN!==false && s.role!=='HN');
-  for(let i=0;i<meta.length-1;i++){
-    const m1=meta[i], m2=meta[i+1], d1=m1.day, d2=m2.day;
-    while(coverageForDay(staff,schedule,d1,m1).N<2 && coverageForDay(staff,schedule,d2,m2).N<2){
-      let candidates=nightStaff.filter(s=>!schedule[s.id][d1] && !schedule[s.id][d2] && canAssign(s,'N',d1,schedule,meta));
-      const dedicated=candidates.filter(s=>s.profile.dedicatedNight && s.assignedN < s.goals.N);
-      if(dedicated.length) candidates=dedicated;
-      const fixedPair=candidates.filter(s=>(s.name==='임수영' || s.name==='임윤정') && s.assignedN < 2);
-      if(fixedPair.length) candidates=fixedPair;
-      candidates.sort((a,b)=>(a.assignedN+(a.profile.dedicatedNight?-5:0)+a.id*0.01)-(b.assignedN+(b.profile.dedicatedNight?-5:0)+b.id*0.01));
-      const chosen=candidates[0]; if(!chosen) break;
-      mark(schedule,chosen,d1,'N'); mark(schedule,chosen,d2,'N');
-      const d3=meta[i+2]?.day, d4=meta[i+3]?.day;
-      if(d3 && !schedule[chosen.id][d3]) mark(schedule,chosen,d3,'OFF');
-      if(d4 && !schedule[chosen.id][d4]) mark(schedule,chosen,d4,'OFF');
-    }
-  }
-}
-function assignPriorityStaff(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('assignPriorityStaff: staff not array');
-  for(const s of staff){
-    if(s.role==='HN'){
-      for(const m of meta){ if(!schedule[s.id][m.day] && dayHasRoom(staff,schedule,m.day,'D',m) && canAssign(s,'D',m.day,schedule,meta)) mark(schedule,s,m.day,'D'); }
-    }
-  }
-  for(const s of staff){
-    if(!['임수영','임윤정'].includes(s.name)) continue;
-    const main=s.name==='임수영'?'E':'D';
-    for(const m of meta){
-      if(schedule[s.id][m.day]) continue;
-      if(dayHasRoom(staff,schedule,m.day,main,m) && canAssign(s,main,m.day,schedule,meta)) mark(schedule,s,m.day,main);
-    }
-  }
-}
-function fillRemaining(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('fillRemaining: staff not array');
-  for(const m of meta){
-    for(const code of ['D','S','E']){
-      while(dayHasRoom(staff,schedule,m.day,code,m)){
-        let candidates=staff.filter(s=>canAssign(s,code,m.day,schedule,meta));
-        if(code==='S') candidates=candidates.filter(s=>s.profile.canS);
-        candidates.sort((a,b)=>scoreCandidate(a,code,m.day,schedule)-scoreCandidate(b,code,m.day,schedule));
-        const chosen=candidates[0]; if(!chosen) break;
-        mark(schedule,chosen,m.day,code);
-      }
-    }
-    staff.forEach(s=>{ if(!schedule[s.id][m.day]) { if(s.assignedD+s.assignedS+s.assignedE+s.assignedN < s.goals.WORK) mark(schedule,s,m.day,'연'); else mark(schedule,s,m.day,'OFF'); } });
-  }
-}
-function attemptSwap(staff,schedule,meta,day,needCode){
-  const m=meta.find(x=>x.day===day);
-  let free=staff.filter(s=>!schedule[s.id][day] && canAssign(s,needCode,day,schedule,meta));
-  if(needCode==='S') free=free.filter(s=>s.profile.canS);
-  if(free.length){ free.sort((a,b)=>scoreCandidate(a,needCode,day,schedule)-scoreCandidate(b,needCode,day,schedule)); mark(schedule,free[0],day,needCode); return true; }
-  const occupied=staff.filter(s=>['D','S','E','OFF'].includes(schedule[s.id][day]));
-  for(const occ of occupied){
-    const from=schedule[occ.id][day]; if(from===needCode) continue; if(['임수영'].includes(occ.name)&&needCode==='D') continue; if(['임윤정'].includes(occ.name)&&needCode==='E') continue;
-    unmark(schedule,occ,day,from);
-    if(canAssign(occ,needCode,day,schedule,meta)) { mark(schedule,occ,day,needCode); return true; }
-    mark(schedule,occ,day,from);
-  }
-  return false;
-}
-function repairCoverage(staff,schedule,meta){ if(!Array.isArray(staff)) throw new Error('repairCoverage: staff not array');
-  for(const m of meta){
-    let guard=0;
-    while(guard<20){
-      guard++;
-      const c=coverageForDay(staff,schedule,m.day,m);
-      let changed=false;
-      if(c.N<2) changed = attemptSwap(staff,schedule,meta,m.day,'N') || changed;
-      const c2=coverageForDay(staff,schedule,m.day,m);
-      if(m.req.S===1){
-        while(c2.DLike < (m.req.D+m.req.S)){
-          if(!(attemptSwap(staff,schedule,meta,m.day,'D') || attemptSwap(staff,schedule,meta,m.day,'S'))) break;
-          changed=true; const nx=coverageForDay(staff,schedule,m.day,m); c2.DLike=nx.DLike;
-        }
-      } else {
-        if(c2.D < m.req.D) changed = attemptSwap(staff,schedule,meta,m.day,'D') || changed;
-        const c3=coverageForDay(staff,schedule,m.day,m);
-        if(c3.E < m.req.E) changed = attemptSwap(staff,schedule,meta,m.day,'E') || changed;
-      }
-      const after=coverageForDay(staff,schedule,m.day,m);
-      const ok=after.N===2 && (m.req.S===1 ? after.DLike>=(m.req.D+m.req.S) : (after.D>=m.req.D && after.E>=m.req.E));
-      if(ok || !changed) break;
-    }
-  }
-}
-function collectRuleWarnings(result,config){ const warnings=[]; result.staff.forEach(s=>result.meta.forEach(m=>{ const y1=prevShift(result.schedule,s.id,m.day,1), y2=prevShift(result.schedule,s.id,m.day,2); if(y1==='N'&&y2==='N'&& result.schedule[s.id][m.day]!== 'OFF' && result.schedule[s.id][m.day]!== '연') warnings.push(`경고: ${s.name} ${config.month}/${m.day} N연속 후 OFF2 위반`);})); return warnings; }
-function collectShortageReasons(staff,day,code,schedule,meta){ const reasons=[]; if(code==='N') reasons.push('N 가능 인원/블록 부족'); if(code==='D') reasons.push('D 전담/수간호사/연속제약 충돌'); if(code==='E') reasons.push('E 전담/연속제약 충돌'); if(code==='S') reasons.push('S 가능 인원 부족'); return reasons.join(', '); }
-function evaluateResult(result){ return (result.logs||[]).length*100 + (result.ruleWarnings||[]).length*30 + (result.staff||[]).reduce((a,s)=>a+((s.negativeOff||0)*10),0); }
-function generateSchedule(config,keepGoals=false,generationOverride=null){
-  const generation=generationOverride ?? ((appState.generation||0)+1);
-  const staff=Array.isArray(parseStaff(config.staffInput)) ? parseStaff(config.staffInput) : []; if(!Array.isArray(staff)) throw new Error('generateSchedule: staff parse failed');
-  const holidaysSet=new Set((config.holidays||'').split(',').map(v=>Number(v.trim())).filter(Boolean));
-  const meta=dayMeta(config.year,config.month,holidaysSet);
-  const schedule=initSchedule(staff,meta);
-  const logs=[];
-  const shortageReasons=[];
-  assignMonthlyGoals(staff,meta);
-  if(keepGoals&&appState.result&&Array.isArray(appState.result.staff)){
-    staff.forEach(s=>{ const prev=appState.result.staff.find(x=>x.id===s.id); if(prev){ s.goals={...prev.goals}; s.profile={...prev.profile}; s.requestRaw=prev.requestRaw; s.request=parseRequest(prev.requestRaw||''); } });
-  }
-  resetAssigned(staff);
-  assignFixedOff(staff,schedule,meta);
-  assignNightBlocks(staff,schedule,meta);
-  assignPriorityStaff(staff,schedule,meta);
-  fillRemaining(staff,schedule,meta);
-  repairCoverage(staff,schedule,meta);
-  meta.forEach(m=>{
-    const c=coverageForDay(staff,schedule,m.day,m);
-    if(m.req.S===1){
-      if(c.DLike<(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`);
-      if(c.DLike>(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간초과 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`);
-    } else {
-      if(c.D!==m.req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${m.req.D}`);
-    }
-    if(c.E!==m.req.E) logs.push(`주의: ${config.month}/${m.day} E ${c.E}/${m.req.E}`);
-    if(c.N!==2){
-      logs.push(`주의: ${config.month}/${m.day} N ${c.N}/2`);
-      if(c.N<2) shortageReasons.push(`${config.month}/${m.day} N 부족 사유 -> ${collectShortageReasons(staff,m.day,'N',schedule,meta)}`);
-    }
-  });
-  staff.forEach(s=>{
-    const totalRest=s.assignedOFF+s.assigned연;
-    const targetRest=(s.goals.OFF||0)+(s.goals.연||0);
-    const totalWorked=s.assignedD+s.assignedS+s.assignedE+s.assignedN;
-    s.negativeOff=Math.max(0,targetRest-totalRest);
-    s.goals.WORK=meta.length-(s.goals.OFF||0)-(s.goals.연||0);
-    if(totalWorked>s.goals.WORK){ s.negativeOff += (totalWorked-s.goals.WORK); s.goals.WORK=totalWorked; }
-    if(totalWorked<s.goals.WORK){ s.assigned연 += (s.goals.WORK-totalWorked); }
-  });
-  const result={staff,meta,schedule,logs,holidaysSet,shortageReasons,generation};
-  result.ruleWarnings=collectRuleWarnings(result,config);
-  return result;
-}
-function renderRulesEditor(result){ const arr=Array.isArray(result?.staff)?result.staff:[]; let html='<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>비N주력</th><th>엄격</th><th>canS</th><th>N전담</th><th>연 quota</th><th>canN</th></tr></thead><tbody>'; arr.forEach(s=>{ html += `<tr><td>${s.name}</td><td>${s.role}</td><td><select class="rule-field" data-id="${s.id}" data-field="senior"><option value="true" ${s.profile.senior?'selected':''}>Y</option><option value="false" ${!s.profile.senior?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="shiftMain">${['','D','S','E','N','mixed'].map(v=>`<option value="${v}" ${s.profile.shiftMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="nonNightMain">${['','D','E','S','mixed'].map(v=>`<option value="${v}" ${s.profile.nonNightMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="strictMain"><option value="true" ${s.profile.strictMain?'selected':''}>Y</option><option value="false" ${!s.profile.strictMain?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="canS"><option value="true" ${s.profile.canS?'selected':''}>Y</option><option value="false" ${!s.profile.canS?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="dedicatedNight"><option value="true" ${s.profile.dedicatedNight?'selected':''}>Y</option><option value="false" ${!s.profile.dedicatedNight?'selected':''}>N</option></select></td><td><input class="rule-field" data-id="${s.id}" data-field="leaveQuota" value="${s.profile.leaveQuota||0}" /></td><td><select class="rule-field" data-id="${s.id}" data-field="canN"><option value="true" ${s.profile.canN?'selected':''}>Y</option><option value="false" ${!s.profile.canN?'selected':''}>N</option></select></td></tr>`; }); html+='</tbody></table>'; document.getElementById('rulesWrap').innerHTML=html; }
-function cellWarnClass(result,day,code){ const m=result.meta.find(x=>x.day===day); const c=coverageForDay(result.staff,result.schedule,day,m); if(code==='N') return c.N!==2?'warn-soft':''; if((code==='D'||code==='S') && m.req.S===1) return c.DLike!==(m.req.D+m.req.S)?'warn-soft':''; return c[code]!==m.req[code]?'warn-soft':''; }
-function renderTable(result,month){ const meta=Array.isArray(result?.meta)?result.meta:[]; const staff=Array.isArray(result?.staff)?result.staff:[]; let html='<table><thead><tr><th class="sticky name-col">번호</th><th class="sticky2 meta-col">구분</th><th class="sticky3 goal-col">월 목표</th><th class="sticky4 goal-col">실적</th><th class="sticky5 request-col">리퀘스트</th>'; meta.forEach(m=>{ const cls=m.isHoliday?'holiday':(m.dow===0?'sun':m.dow===6?'sat':''); html += `<th class="${cls}">${m.day}<div class="small">${m.dowName[0]}</div></th>`; }); html += '</tr></thead><tbody>'; staff.forEach(s=>{ const goalText=`D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} 연:${s.goals.연||0} WORK:${s.goals.WORK||0}`; const actualText=`D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} 연:${s.assigned연} -OFF:${s.negativeOff||0}`; html += `<tr><td class="sticky name-col mono">${s.name}</td><td class="sticky2 meta-col">${s.role}</td><td class="sticky3 goal-col"><input class="goal-input" data-goal-id="${s.id}" value="${goalText}"></td><td class="sticky4 goal-col small">${actualText}</td><td class="sticky5 request-col"><input class="request-input" data-request-id="${s.id}" value="${s.requestRaw||''}"></td>`; meta.forEach(m=>{ const v=result.schedule?.[s.id]?.[m.day]||''; const warn=['D','S','E','N'].includes(v)?cellWarnClass(result,m.day,v):''; html += `<td class="shift-${v} ${warn}"><select class="cell-select" data-id="${s.id}" data-day="${m.day}">${['','D','S','E','N','OFF','연'].map(opt=>`<option value="${opt}" ${opt===v?'selected':''}>${opt}</option>`).join('')}</select></td>`; }); html += '</tr>'; }); html += '</tbody></table>'; document.getElementById('tableWrap').innerHTML=html; bindInteractiveTable(); }
-function renderCoverage(result,month){ let html='<table><thead><tr><th>일자</th><th>요일</th><th>필요 D</th><th>필요 S</th><th>필요 E</th><th>필요 N</th><th>배정 D</th><th>배정 S</th><th>배정 E</th><th>배정 N</th><th>비고</th></tr></thead><tbody>'; result.meta.forEach(m=>{ const c=coverageForDay(result.staff,result.schedule,m.day,m); const issues=[]; if(m.req.S===1){ if(c.DLike<(m.req.D+m.req.S)) issues.push('주간 부족'); if(c.DLike>(m.req.D+m.req.S)) issues.push('주간 초과'); } else { if(c.D<m.req.D) issues.push('D 부족'); if(c.D>m.req.D) issues.push('D 초과'); } if(c.S<m.req.S) issues.push('S 부족'); if(c.S>m.req.S) issues.push('S 초과'); if(c.E<m.req.E) issues.push('E 부족'); if(c.E>m.req.E) issues.push('E 초과'); if(c.N<2) issues.push('N 부족'); if(c.N>2) issues.push('N 초과'); html += `<tr class="${issues.length?'warn-soft':''}"><td>${month}/${m.day}</td><td>${m.dowName}</td><td>${m.req.D}</td><td>${m.req.S}</td><td>${m.req.E}</td><td>2</td><td>${c.D}</td><td>${c.S}</td><td>${c.E}</td><td>${c.N}</td><td>${issues.join(', ')}</td></tr>`; }); html += '</tbody></table>'; document.getElementById('coverageWrap').innerHTML=html; }
-function renderCapacitySummary(result){ const totalRequired=result.meta.reduce((sum,m)=>sum+m.req.D+m.req.S+m.req.E+m.req.N,0); const totalCapacity=result.staff.reduce((sum,s)=>sum+(s.goals.WORK||0),0); const shortage=totalRequired-totalCapacity; const lines=[`필요 총 포지션 수: ${totalRequired}`,`현재 인원 목표 OFF 기준 소화 가능 포지션 수: ${totalCapacity}`, shortage>0?`주의: ${shortage}포지션 부족`:`충분 또는 여유: ${Math.abs(shortage)}포지션`]; const el=document.getElementById('capacityStatus'); el.className=shortage>0?'status warn-soft':'status'; el.textContent=lines.join('\n'); }
-function renderStatus(result,config){ const lines=[]; lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`); lines.push(`선택된 조합 seed: ${result.generation||1}`); lines.push('내부 탐색: 8개 조합 중 최선안 선택'); lines.push(`인원: ${result.staff.length}명`); lines.push(`커버 주의: ${result.logs.length}건`); lines.push(`규칙 경고: ${(result.ruleWarnings||[]).length}건`); if(result.logs.length){ lines.push('--- 커버 주의 ---'); lines.push(result.logs.slice(0,12).join('\n')); } if(result.shortageReasons&&result.shortageReasons.length){ lines.push('--- 부족 사유 ---'); lines.push(result.shortageReasons.slice(0,12).join('\n')); } if(result.ruleWarnings&&result.ruleWarnings.length){ lines.push('--- 규칙 경고 ---'); lines.push(result.ruleWarnings.slice(0,12).join('\n')); } document.getElementById('status').textContent=lines.join('\n'); }
-function parseGoalText(text){ const goal={D:0,S:0,E:0,N:0,OFF:0,연:0,WORK:0}; String(text).split(/\s+/).forEach(token=>{ const [k,v]=token.split(':'); if(goal[k]!==undefined) goal[k]=Number(v||0); }); return goal; }
-function recalcAssignedFromSchedule(result){ result.staff.forEach(s=>{s.assignedD=0;s.assignedS=0;s.assignedE=0;s.assignedN=0;s.assignedOFF=0;s.assigned연=0;}); result.staff.forEach(s=>result.meta.forEach(m=>{ const v=result.schedule[s.id][m.day]; if(v==='D') s.assignedD++; else if(v==='S') s.assignedS++; else if(v==='E') s.assignedE++; else if(v==='N') s.assignedN++; else if(v==='OFF') s.assignedOFF++; else if(v==='연') s.assigned연++; })); }
-function persistProfiles(){ try{ const payload={staffInput:document.getElementById('staffInput').value,profiles:appState.result?appState.result.staff.map(s=>({id:s.id,profile:s.profile,goals:s.goals,requestRaw:s.requestRaw})):[]}; localStorage.setItem(STORAGE_KEY,JSON.stringify(payload)); }catch(e){} }
-function loadProfilesFromStorage(){ try{ const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return false; const data=JSON.parse(raw); if(data.staffInput) document.getElementById('staffInput').value=data.staffInput; return true; }catch(e){ return false; } }
-function bindInteractiveTable(){ document.querySelectorAll('.cell-select').forEach(el=>el.addEventListener('change',e=>{ const id=Number(e.target.dataset.id), day=Number(e.target.dataset.day); appState.result.schedule[id][day]=e.target.value; recalcAssignedFromSchedule(appState.result); renderTable(appState.result,appState.config.month); renderCoverage(appState.result,appState.config.month); renderStatus(appState.result,appState.config); persistProfiles(); })); document.querySelectorAll('.goal-input').forEach(el=>el.addEventListener('change',e=>{ const id=Number(e.target.dataset.goalId); const s=appState.result.staff.find(x=>x.id===id); s.goals=parseGoalText(e.target.value); run(true); persistProfiles(); })); document.querySelectorAll('.request-input').forEach(el=>el.addEventListener('change',e=>{ const id=Number(e.target.dataset.requestId); const s=appState.result.staff.find(x=>x.id===id); s.requestRaw=e.target.value; s.request=parseRequest(e.target.value); run(true); persistProfiles(); })); document.querySelectorAll('.rule-field').forEach(el=>el.addEventListener('change',e=>{ const id=Number(e.target.dataset.id); const field=e.target.dataset.field; const s=appState.result.staff.find(x=>x.id===id); let v=e.target.value; if(v==='true') v=true; else if(v==='false') v=false; else if(!Number.isNaN(Number(v)) && field==='leaveQuota') v=Number(v); s.profile[field]=v; if(field==='leaveQuota') s.goals.연=Number(v||0); run(true); persistProfiles(); })); }
-function gatherConfig(){ return {year:Number(document.getElementById('year').value),month:Number(document.getElementById('month').value),staffCount:Number(document.getElementById('staffCount').value),holidays:document.getElementById('holidays').value,staffInput:document.getElementById('staffInput').value}; }
-function run(keepGoals=false){ try{ const config=gatherConfig(); let bestResult=null,bestScore=Infinity; const trials=8; const errors=[]; for(let i=0;i<trials;i++){ try{ const candidate=generateSchedule(config,keepGoals,(appState.generation||0)+1+i); const score=evaluateResult(candidate); if(score<bestScore){ bestScore=score; bestResult=candidate; } } catch(inner){ errors.push(inner && inner.stack ? inner.stack : String(inner)); } } if(!bestResult){ throw new Error(errors[0] || 'all candidates failed'); } const result=bestResult; appState={result,config,generation:(appState.generation||0)+trials}; renderStatus(result,config); renderCapacitySummary(result); renderRulesEditor(result); renderTable(result,config.month); renderCoverage(result,config.month); persistProfiles(); } catch(err){ document.getElementById('status').textContent='오류: '+(err && err.stack ? err.stack : err.message); } }
-function exportCurrentJson(){ const data=JSON.stringify({config:appState.config,staff:appState.result.staff.map(s=>({id:s.id,name:s.name,role:s.role,goals:s.goals,requestRaw:s.requestRaw,profile:s.profile}))},null,2); const blob=new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nurse-schedule-config.json'; a.click(); URL.revokeObjectURL(url); }
-document.getElementById('sampleBtn').addEventListener('click',()=>{ document.getElementById('staffInput').value=buildSampleStaff(); run(); });
-document.getElementById('clearBtn').addEventListener('click',()=>{ document.getElementById('staffInput').value=buildSampleStaff(); try{ localStorage.removeItem(STORAGE_KEY); }catch(e){} document.getElementById('tableWrap').innerHTML=''; document.getElementById('coverageWrap').innerHTML=''; document.getElementById('rulesWrap').innerHTML=''; document.getElementById('status').textContent='클리어됨. 다시 표 생성하면 새로 계산합니다.'; appState={result:null,config:null,generation:0}; });
-document.getElementById('generateBtn').addEventListener('click',()=>run(true));
-document.getElementById('saveBtn').addEventListener('click',exportCurrentJson);
-if(!loadProfilesFromStorage()){ document.getElementById('staffInput').value=buildSampleStaff(); }
-run();
+function parseStaff(text){return String(text).split(/\n+/).map(v=>v.trim()).filter(Boolean).map(line=>{const [id,name,role='RN',maxN='0',preferred='',blocked='',request='']=line.split(',').map(v=>(v||'').trim()); const pid=Number(id); const obj={id:pid,name,role,maxN:Number(maxN||0),preferred,blockedDays:blocked?blocked.split('|').map(v=>v.trim()).filter(Boolean):[],requestRaw:request,request:parseRequest(request),profile:{senior:pid<=6,shiftMain:preferred||'',nonNightMain:preferred||'',strictMain:false,canS:pid>=9,canN:role!=='HN',dedicatedNight:name==='서민경',leaveQuota:0},goals:{D:0,S:0,E:0,N:Number(maxN||0),OFF:0,연:0,WORK:0},assignedD:0,assignedS:0,assignedE:0,assignedN:0,assignedOFF:0,assigned연:0,negativeOff:0}; if(name==='임수영'){obj.profile.nonNightMain='E';obj.profile.shiftMain='E';obj.profile.strictMain=true;obj.profile.canS=false;obj.goals.N=2;} if(name==='임윤정'){obj.profile.nonNightMain='D';obj.profile.shiftMain='D';obj.profile.strictMain=true;obj.profile.canS=false;obj.goals.N=2;} return obj;}).sort((a,b)=>a.id-b.id);}
+function getDailyRequirement(date, holidaysSet){const dow=date.getDay(), day=date.getDate(), isHoliday=holidaysSet.has(day); if(isHoliday) return {D:2,S:0,E:2,N:2}; if(dow===1||dow===5) return {D:3,S:0,E:3,N:2}; if(dow===2||dow===3||dow===4) return {D:2,S:1,E:2,N:2}; if(dow===6) return {D:3,S:0,E:2,N:2}; return {D:2,S:0,E:2,N:2};}
+function dayMeta(year,month,holidaysSet){const days=new Date(year,month,0).getDate(); const arr=[]; for(let d=1; d<=days; d++){const date=new Date(year,month-1,d); arr.push({day:d,dow:date.getDay(),dowName:weekdayNames[date.getDay()],isHoliday:holidaysSet.has(d),req:getDailyRequirement(date,holidaysSet)});} return arr;}
+function baseOffCount(meta){let w=0,h=0; meta.forEach(m=>{if(m.dow===0||m.dow===6) w++; else if(m.isHoliday) h++;}); return w+h;}
+function initSchedule(staff,meta){const out={}; staff.forEach(s=>{out[s.id]={}; meta.forEach(m=>out[s.id][m.day]='');}); return out;}
+function blockedByFixedRule(staff,metaDay){if(staff.role==='HN'&&(metaDay.dowName==='Thu'||metaDay.dowName==='Sun')) return 'OFF'; if(staff.blockedDays.includes(metaDay.dowName)) return 'OFF'; if(staff.request.off.has(metaDay.day)) return 'OFF'; return null;}
+function prevShift(schedule,id,day,offset=1){const d=day-offset; return d<1?'':(schedule[id][d]||'');}
+function mark(schedule,staff,day,code){schedule[staff.id][day]=code; if(code==='D') staff.assignedD++; else if(code==='S') staff.assignedS++; else if(code==='E') staff.assignedE++; else if(code==='N') staff.assignedN++; else if(code==='OFF') staff.assignedOFF++; else if(code==='연') staff.assigned연++;}
+function unmark(schedule,staff,day,code){schedule[staff.id][day]=''; if(code==='D') staff.assignedD--; else if(code==='S') staff.assignedS--; else if(code==='E') staff.assignedE--; else if(code==='N') staff.assignedN--; else if(code==='OFF') staff.assignedOFF--; else if(code==='연') staff.assigned연--;}
+function coverageForDay(staff,schedule,day,metaDay){const c={D:0,S:0,E:0,N:0,OFF:0,연:0}; staff.forEach(s=>{const v=schedule[s.id][day]; if(c[v]!==undefined) c[v]++;}); c.DLike=metaDay&&metaDay.req.S===1?c.D+c.S:c.D; return c;}
+function dayHasRoom(staff,schedule,day,code,metaDay){const c=coverageForDay(staff,schedule,day,metaDay); if(code==='N') return c.N<2; if(code==='E') return c.E<metaDay.req.E; if(code==='S') return c.S<metaDay.req.S; if(code==='D') return metaDay.req.S===1 ? c.DLike<(metaDay.req.D+metaDay.req.S) : c.D<metaDay.req.D; return true;}
+function canAssign(staff,code,day,schedule,meta){if(schedule[staff.id][day]) return false; const metaDay=meta.find(m=>m.day===day); const fixed=blockedByFixedRule(staff,metaDay); if(fixed&&code!==fixed) return false; if(staff.role==='HN' && !['D','OFF','연'].includes(code)) return false; if(code==='S' && !staff.profile.canS) return false; if(code==='N' && !staff.profile.canN) return false; if(staff.name==='임수영'&&code==='D') return false; if(staff.name==='임윤정'&&code==='E') return false; const y1=prevShift(schedule,staff.id,day,1); if((code==='D'||code==='S')&&y1==='E') return false; if(code==='D'&&y1==='N') return false; if(code==='S'&&y1==='N') return false; if(code==='E'&&y1==='N') return false; if(code==='N'){ const nextDay=day+1; const nextMeta=meta.find(m=>m.day===nextDay); if(!nextMeta) return false; if(schedule[staff.id][nextDay]) return false; if(staff.request.avoid['N']&&staff.request.avoid['N'].has(day)) return false; if(staff.request.avoid['N']&&staff.request.avoid['N'].has(nextDay)) return false; } if(staff.request.avoid[code]&&staff.request.avoid[code].has(day)) return false; return true;}
+function scoreCandidate(staff,code,day,schedule){let score=staff.id*0.01; if(staff.profile.dedicatedNight&&code==='N') score-=50; if(staff.role==='HN'&&code==='D') score-=100; if(staff.profile.nonNightMain===code&&code!=='N') score-=20; if(staff.profile.strictMain&&staff.profile.nonNightMain&&code!==staff.profile.nonNightMain&&code!=='N') score+=100; const y1=prevShift(schedule,staff.id,day,1); if(code==='D'&&y1==='E') score+=20; if(code==='E'&&y1==='D') score-=3; return score;}
+function assignMonthlyGoals(staff,meta){const totalDays=meta.length, offBase=baseOffCount(meta); staff.forEach(s=>{s.goals.OFF=offBase; s.goals.연=s.profile.leaveQuota||0; s.goals.WORK=Math.max(0,totalDays-s.goals.OFF-s.goals.연); if(s.role==='HN'){s.goals.D=s.goals.WORK;s.goals.E=0;s.goals.S=0;s.goals.N=0;} else if(s.name==='임수영'){s.goals.N=2;s.goals.E=Math.max(0,s.goals.WORK-2);s.goals.D=0;s.goals.S=0;} else if(s.name==='임윤정'){s.goals.N=2;s.goals.D=Math.max(0,s.goals.WORK-2);s.goals.E=0;s.goals.S=0;} else if(s.profile.dedicatedNight){s.goals.N=Math.min(14,s.goals.WORK);s.goals.D=0;s.goals.E=0;s.goals.S=0;} else {const remain=Math.max(0,s.goals.WORK-s.goals.N); if(s.profile.nonNightMain==='E'){s.goals.E=Math.floor(remain*0.6);s.goals.D=remain-s.goals.E;s.goals.S=0;} else if(s.profile.nonNightMain==='D'){s.goals.D=Math.floor(remain*0.6);s.goals.E=remain-s.goals.D;s.goals.S=0;} else if(s.profile.nonNightMain==='S'&&s.profile.canS){s.goals.S=Math.floor(remain*0.35);s.goals.D=Math.floor((remain-s.goals.S)*0.5);s.goals.E=remain-s.goals.S-s.goals.D;} else {s.goals.D=Math.floor(remain*0.45);s.goals.E=remain-s.goals.D;s.goals.S=0;}}});}
+function resetAssigned(staff){staff.forEach(s=>{s.assignedD=0;s.assignedS=0;s.assignedE=0;s.assignedN=0;s.assignedOFF=0;s.assigned연=0;s.negativeOff=0;});}
+function assignFixedOff(staff,schedule,meta){meta.forEach(m=>staff.forEach(s=>{const fixed=blockedByFixedRule(s,m); if(fixed&&!schedule[s.id][m.day]) mark(schedule,s,m.day,fixed);}));}
+function assignNightBlocks(staff,schedule,meta){const nightStaff=staff.filter(s=>s.profile.canN!==false&&s.role!=='HN'); for(let i=0;i<meta.length-1;i++){const m1=meta[i],m2=meta[i+1],d1=m1.day,d2=m2.day; while(coverageForDay(staff,schedule,d1,m1).N<2&&coverageForDay(staff,schedule,d2,m2).N<2){ let candidates=nightStaff.filter(s=>!schedule[s.id][d1]&&!schedule[s.id][d2]&&canAssign(s,'N',d1,schedule,meta)); const dedicated=candidates.filter(s=>s.profile.dedicatedNight&&s.assignedN<s.goals.N); if(dedicated.length) candidates=dedicated; const fixedPair=candidates.filter(s=>(s.name==='임수영'||s.name==='임윤정')&&s.assignedN<2); if(fixedPair.length) candidates=fixedPair; candidates.sort((a,b)=>(a.assignedN+(a.profile.dedicatedNight?-5:0)+a.id*0.01)-(b.assignedN+(b.profile.dedicatedNight?-5:0)+b.id*0.01)); const chosen=candidates[0]; if(!chosen) break; mark(schedule,chosen,d1,'N'); mark(schedule,chosen,d2,'N'); const d3=meta[i+2]?.day,d4=meta[i+3]?.day; if(d3&&!schedule[chosen.id][d3]) mark(schedule,chosen,d3,'OFF'); if(d4&&!schedule[chosen.id][d4]) mark(schedule,chosen,d4,'OFF'); } } }
+function assignPriorityStaff(staff,schedule,meta){staff.forEach(s=>{ if(s.role==='HN'){ meta.forEach(m=>{ if(!schedule[s.id][m.day]&&dayHasRoom(staff,schedule,m.day,'D',m)&&canAssign(s,'D',m.day,schedule,meta)) mark(schedule,s,m.day,'D'); }); }}); staff.forEach(s=>{ if(!['임수영','임윤정'].includes(s.name)) return; const main=s.name==='임수영'?'E':'D'; meta.forEach(m=>{ if(!schedule[s.id][m.day]&&dayHasRoom(staff,schedule,m.day,main,m)&&canAssign(s,main,m.day,schedule,meta)) mark(schedule,s,m.day,main); }); }); }
+function fillRemaining(staff,schedule,meta){for(const m of meta){ for(const code of ['D','S','E']){ while(dayHasRoom(staff,schedule,m.day,code,m)){ let candidates=staff.filter(s=>canAssign(s,code,m.day,schedule,meta)); if(code==='S') candidates=candidates.filter(s=>s.profile.canS); candidates.sort((a,b)=>scoreCandidate(a,code,m.day,schedule)-scoreCandidate(b,code,m.day,schedule)); const chosen=candidates[0]; if(!chosen) break; mark(schedule,chosen,m.day,code);} } staff.forEach(s=>{ if(!schedule[s.id][m.day]){ if(s.assignedD+s.assignedS+s.assignedE+s.assignedN < s.goals.WORK) mark(schedule,s,m.day,'연'); else mark(schedule,s,m.day,'OFF'); } }); }}
+function attemptSwap(staff,schedule,meta,day,needCode){const m=meta.find(x=>x.day===day); let free=staff.filter(s=>!schedule[s.id][day]&&canAssign(s,needCode,day,schedule,meta)); if(needCode==='S') free=free.filter(s=>s.profile.canS); if(free.length){ free.sort((a,b)=>scoreCandidate(a,needCode,day,schedule)-scoreCandidate(b,needCode,day,schedule)); mark(schedule,free[0],day,needCode); return true; } const occupied=staff.filter(s=>['D','S','E','OFF','연'].includes(schedule[s.id][day])); for(const occ of occupied){ const from=schedule[occ.id][day]; if(from===needCode) continue; if(occ.name==='임수영'&&needCode==='D') continue; if(occ.name==='임윤정'&&needCode==='E') continue; unmark(schedule,occ,day,from); if(canAssign(occ,needCode,day,schedule,meta)){ mark(schedule,occ,day,needCode); return true; } mark(schedule,occ,day,from);} return false; }
+function repairCoverage(staff,schedule,meta){for(const m of meta){ let guard=0; while(guard<20){ guard++; const c=coverageForDay(staff,schedule,m.day,m); let changed=false; if(c.N<2) changed=attemptSwap(staff,schedule,meta,m.day,'N')||changed; const c2=coverageForDay(staff,schedule,m.day,m); if(m.req.S===1){ while(c2.DLike<(m.req.D+m.req.S)){ if(!(attemptSwap(staff,schedule,meta,m.day,'D')||attemptSwap(staff,schedule,meta,m.day,'S'))) break; changed=true; const nx=coverageForDay(staff,schedule,m.day,m); c2.DLike=nx.DLike; } } else { if(c2.D<m.req.D) changed=attemptSwap(staff,schedule,meta,m.day,'D')||changed; const c3=coverageForDay(staff,schedule,m.day,m); if(c3.E<m.req.E) changed=attemptSwap(staff,schedule,meta,m.day,'E')||changed; } const after=coverageForDay(staff,schedule,m.day,m); const ok=after.N===2&&(m.req.S===1?after.DLike>=(m.req.D+m.req.S):(after.D>=m.req.D&&after.E>=m.req.E)); if(ok||!changed) break; }} }
+function collectRuleWarnings(result,config){const warnings=[]; result.staff.forEach(s=>result.meta.forEach(m=>{ const y1=prevShift(result.schedule,s.id,m.day,1), y2=prevShift(result.schedule,s.id,m.day,2); if(y1==='N'&&y2==='N'&&result.schedule[s.id][m.day]!=='OFF'&&result.schedule[s.id][m.day]!=='연') warnings.push(`경고: ${s.name} ${config.month}/${m.day} N연속 후 OFF2 위반`);})); return warnings;}
+function collectShortageReasons(staff,day,code,schedule,meta){const reasons=[]; if(code==='N') reasons.push('N 가능 인원/블록 부족'); if(code==='D') reasons.push('D 전담/수간호사/연속제약 충돌'); if(code==='E') reasons.push('E 전담/연속제약 충돌'); if(code==='S') reasons.push('S 가능 인원 부족'); return reasons.join(', ');}
+function evaluateResult(result){return (result.logs||[]).length*100 + (result.ruleWarnings||[]).length*30 + (result.staff||[]).reduce((a,s)=>a+((s.negativeOff||0)*10),0);}
+function generateSchedule(config,keepGoals=false,generationOverride=null){const generation=generationOverride ?? ((appState.generation||0)+1); const staff=parseStaff(config.staffInput); const holidaysSet=new Set((config.holidays||'').split(',').map(v=>Number(v.trim())).filter(Boolean)); const meta=dayMeta(config.year,config.month,holidaysSet); const schedule=initSchedule(staff,meta); const logs=[]; const shortageReasons=[]; assignMonthlyGoals(staff,meta); if(keepGoals&&appState.result&&Array.isArray(appState.result.staff)){ staff.forEach(s=>{ const prev=appState.result.staff.find(x=>x.id===s.id); if(prev){ s.goals={...prev.goals}; s.profile={...prev.profile}; s.requestRaw=prev.requestRaw; s.request=parseRequest(prev.requestRaw||''); } }); } resetAssigned(staff); assignFixedOff(staff,schedule,meta); assignNightBlocks(staff,schedule,meta); assignPriorityStaff(staff,schedule,meta); fillRemaining(staff,schedule,meta); repairCoverage(staff,schedule,meta); meta.forEach(m=>{ const c=coverageForDay(staff,schedule,m.day,m); if(m.req.S===1){ if(c.DLike<(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`); if(c.DLike>(m.req.D+m.req.S)) logs.push(`주의: ${config.month}/${m.day} 주간초과 ${c.D}+${c.S}/${m.req.D}+${m.req.S}`); } else { if(c.D!==m.req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${m.req.D}`); } if(c.E!==m.req.E) logs.push(`주의: ${config.month}/${m.day} E ${c.E}/${m.req.E}`); if(c.N!==2){ logs.push(`주의: ${config.month}/${m.day} N ${c.N}/2`); if(c.N<2) shortageReasons.push(`${config.month}/${m.day} N 부족 사유 -> ${collectShortageReasons(staff,m.day,'N',schedule,meta)}`); } }); staff.forEach(s=>{ const totalRest=s.assignedOFF+s.assigned연; const targetRest=(s.goals.OFF||0)+(s.goals.연||0); const totalWorked=s.assignedD+s.assignedS+s.assignedE+s.assignedN; s.negativeOff=Math.max(0,targetRest-totalRest); s.goals.WORK=meta.length-(s.goals.OFF||0)-(s.goals.연||0); if(totalWorked>s.goals.WORK){ s.negativeOff += (totalWorked-s.goals.WORK); s.goals.WORK=totalWorked; } if(totalWorked<s.goals.WORK){ s.assigned연 += (s.goals.WORK-totalWorked); } }); const result={staff,meta,schedule,logs,holidaysSet,shortageReasons,generation}; result.ruleWarnings=collectRuleWarnings(result,config); return result; }
+function renderRulesEditor(result){const arr=Array.isArray(result&&result.staff)?result.staff:[]; let html='<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>비N주력</th><th>엄격</th><th>canS</th><th>N전담</th><th>연 quota</th><th>canN</th></tr></thead><tbody>'; arr.forEach(s=>{ html += `<tr><td>${s.name}</td><td>${s.role}</td><td><select class="rule-field" data-id="${s.id}" data-field="senior"><option value="true" ${s.profile.senior?'selected':''}>Y</option><option value="false" ${!s.profile.senior?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="shiftMain">${['','D','S','E','N','mixed'].map(v=>`<option value="${v}" ${s.profile.shiftMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="nonNightMain">${['','D','E','S','mixed'].map(v=>`<option value="${v}" ${s.profile.nonNightMain===v?'selected':''}>${v}</option>`).join('')}</select></td><td><select class="rule-field" data-id="${s.id}" data-field="strictMain"><option value="true" ${s.profile.strictMain?'selected':''}>Y</option><option value="false" ${!s.profile.strictMain?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="canS"><option value="true" ${s.profile.canS?'selected':''}>Y</option><option value="false" ${!s.profile.canS?'selected':''}>N</option></select></td><td><select class="rule-field" data-id="${s.id}" data-field="dedicatedNight"><option value="true" ${s.profile.dedicatedNight?'selected':''}>Y</option><option value="false" ${!s.profile.dedicatedNight?'selected':''}>N</option></select></td><td><input class="rule-field" data-id="${s.id}" data-field="leaveQuota" value="${s.profile.leaveQuota||0}"></td><td><select class="rule-field" data-id="${s.id}" data-field="canN"><option value="true" ${s.profile.canN?'selected':''}>Y</option><option value="false" ${!s.profile.canN?'selected':''}>N</option></select></td></tr>`; }); html+='</tbody></table>'; document.getElementById('rulesWrap').innerHTML=html; }
+function cellWarnClass(result,day,code){const m=result.meta.find(x=>x.day===day); const c=coverageForDay(result.staff,result.schedule,day,m); if(code==='N') return c.N!==2?'warn-soft':''; if((code==='D'||code==='S')&&m.req.S===1) return c.DLike!==(m.req.D+m.req.S)?'warn-soft':''; return c[code]!==m.req[code]?'warn-soft':'';}
+function renderTable(result,month){const meta=Array.isArray(result&&result.meta)?result.meta:[]; const staff=Array.isArray(result&&result.staff)?result.staff:[]; let html='<table><thead><tr><th class="sticky name-col">번호</th><th class="sticky2 meta-col">구분</th><th class="sticky3 goal-col">월 목표</th><th class="sticky4 goal-col">실적</th><th class="sticky5 request-col">리퀘스트</th>'; meta.forEach(m=>{const cls=m.isHoliday?'holiday':(m.dow===0?'sun':m.dow===6?'sat':''); html += `<th class="${cls}">${m.day}<div class="small">${m.dowName[0]}</div></th>`;}); html+='</tr></thead><tbody>'; staff.forEach(s=>{ const goalText=`D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} 연:${s.goals.연||0} WORK:${s.goals.WORK||0}`; const actualText=`D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} 연:${s.assigned연} -OFF:${s.negativeOff||0}`; html += `<tr><td class="sticky name-col mono">${s.name}</td><td class="sticky2 meta-col">${s.role}</td><td class="sticky3 goal-col"><input class="goal-input" data-goal-id="${s.id}" value="${goalText}"></td><td class="sticky4 goal-col small">${actualText}</td><td class="sticky5 request-col"><input class="request-input" data-request-id="${s.id}" value="${s.requestRaw||''}"></td>`; meta.forEach(m=>{ const v=(result.schedule&&result.schedule[s.id]&&result.schedule[s.id][m.day])||''; const warn=['D','S','E','N'].includes(v)?cellWarnClass(result,m.day,v):''; html += `<td class="shift-${v} ${warn}"><select class="cell-select" data-id="${s.id}" data-day="${m.day}">${['','D','S','E','N','OFF','연'].map(opt=>`<option value="${opt}" ${opt===v?'selected':''}>${opt}</option>`).join('')}</select></td>`;}); html+='</tr>';}); html+='</tbody></table>'; document.getElementById('tableWrap').innerHTML=html; bindInteractiveTable(); }
+function renderCoverage(result,month){let html='<table><thead><tr><th>일자</th><th>요일</th><th>필요 D</th><th>필요 S</th><th>필요 E</th><th>필요 N</th><th>배정 D</th><th>배정 S</th><th>배정 E</th><th>배정 N</th><th>비고</th></tr></thead><tbody>'; result.meta.forEach(m=>{ const c=coverageForDay(result.staff,result.schedule,m.day,m); const issues=[]; if(m.req.S===1){ if(c.DLike<(m.req.D+m.req.S)) issues.push('주간 부족'); if(c.DLike>(m.req.D+m.req.S)) issues.push('주간 초과'); } else { if(c.D<m.req.D) issues.push('D 부족'); if(c.D>m.req.D) issues.push('D 초과'); } if(c.S<m.req.S) issues.push('S 부족'); if(c.S>m.req.S) issues.push('S 초과'); if(c.E<m.req.E) issues.push('E 부족'); if(c.E>m.req.E) issues.push('E 초과'); if(c.N<2) issues.push('N 부족'); if(c.N>2) issues.push('N 초과'); html += `<tr class="${issues.length?'warn-soft':''}"><td>${month}/${m.day}</td><td>${m.dowName}</td><td>${m.req.D}</td><td>${m.req.S}</td><td>${m.req.E}</td><td>2</td><td>${c.D}</td><td>${c.S}</td><td>${c.E}</td><td>${c.N}</td><td>${issues.join(', ')}</td></tr>`;}); html+='</tbody></table>'; document.getElementById('coverageWrap').innerHTML=html; }
+function renderCapacitySummary(result){const totalRequired=result.meta.reduce((sum,m)=>sum+m.req.D+m.req.S+m.req.E+m.req.N,0); const totalCapacity=result.staff.reduce((sum,s)=>sum+(s.goals.WORK||0),0); const shortage=totalRequired-totalCapacity; const lines=[`필요 총 포지션 수: ${totalRequired}`,`현재 인원 목표 OFF 기준 소화 가능 포지션 수: ${totalCapacity}`, shortage>0?`주의: ${shortage}포지션 부족`:`충분 또는 여유: ${Math.abs(shortage)}포지션`]; const el=document.getElementById('capacityStatus'); el.className=shortage>0?'status warn-soft':'status'; el.textContent=lines.join('\n'); }
+function renderStatus(result,config){const lines=[]; lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`); lines.push(`선택된 조합 seed: ${result.generation||1}`); lines.push('내부 탐색: 8개 조합 중 최선안 선택'); lines.push(`인원: ${result.staff.length}명`); lines.push(`커버 주의: ${result.logs.length}건`); lines.push(`규칙 경고: ${(result.ruleWarnings||[]).length}건`); if(result.logs.length){lines.push('--- 커버 주의 ---'); lines.push(result.logs.slice(0,12).join('\n'));} if(result.shortageReasons&&result.shortageReasons.length){lines.push('--- 부족 사유 ---'); lines.push(result.shortageReasons.slice(0,12).join('\n'));} if(result.ruleWarnings&&result.ruleWarnings.length){lines.push('--- 규칙 경고 ---'); lines.push(result.ruleWarnings.slice(0,12).join('\n'));} document.getElementById('status').textContent=lines.join('\n'); }
+function parseGoalText(text){const goal={D:0,S:0,E:0,N:0,OFF:0,연:0,WORK:0}; String(text).split(/\s+/).forEach(token=>{const [k,v]=token.split(':'); if(goal[k]!==undefined) goal[k]=Number(v||0);}); return goal;}
+function recalcAssignedFromSchedule(result){result.staff.forEach(s=>{s.assignedD=0;s.assignedS=0;s.assignedE=0;s.assignedN=0;s.assignedOFF=0;s.assigned연=0;}); result.staff.forEach(s=>result.meta.forEach(m=>{ const v=result.schedule[s.id][m.day]; if(v==='D') s.assignedD++; else if(v==='S') s.assignedS++; else if(v==='E') s.assignedE++; else if(v==='N') s.assignedN++; else if(v==='OFF') s.assignedOFF++; else if(v==='연') s.assigned연++; })); }
+function persistProfiles(){try{const payload={staffInput:document.getElementById('staffInput').value,profiles:appState.result?appState.result.staff.map(s=>({id:s.id,profile:s.profile,goals:s.goals,requestRaw:s.requestRaw})):[]}; localStorage.setItem(STORAGE_KEY,JSON.stringify(payload));}catch(e){}}
+function loadProfilesFromStorage(){try{const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return false; const data=JSON.parse(raw); if(data.staffInput) document.getElementById('staffInput').value=data.staffInput; return true;}catch(e){return false;}}
+function bindInteractiveTable(){document.querySelectorAll('.cell-select').forEach(el=>el.addEventListener('change',e=>{const id=Number(e.target.dataset.id), day=Number(e.target.dataset.day); appState.result.schedule[id][day]=e.target.value; recalcAssignedFromSchedule(appState.result); renderTable(appState.result,appState.config.month); renderCoverage(appState.result,appState.config.month); renderStatus(appState.result,appState.config); persistProfiles();})); document.querySelectorAll('.goal-input').forEach(el=>el.addEventListener('change',e=>{const id=Number(e.target.dataset.goalId); const s=appState.result.staff.find(x=>x.id===id); s.goals=parseGoalText(e.target.value); run(true); persistProfiles();})); document.querySelectorAll('.request-input').forEach(el=>el.addEventListener('change',e=>{const id=Number(e.target.dataset.requestId); const s=appState.result.staff.find(x=>x.id===id); s.requestRaw=e.target.value; s.request=parseRequest(e.target.value); run(true); persistProfiles();})); document.querySelectorAll('.rule-field').forEach(el=>el.addEventListener('change',e=>{const id=Number(e.target.dataset.id); const field=e.target.dataset.field; const s=appState.result.staff.find(x=>x.id===id); let v=e.target.value; if(v==='true') v=true; else if(v==='false') v=false; else if(!Number.isNaN(Number(v))&&field==='leaveQuota') v=Number(v); s.profile[field]=v; if(field==='leaveQuota') s.goals.연=Number(v||0); run(true); persistProfiles();}));}
+function gatherConfig(){return {year:Number(document.getElementById('year').value),month:Number(document.getElementById('month').value),staffCount:Number(document.getElementById('staffCount').value),holidays:document.getElementById('holidays').value,staffInput:document.getElementById('staffInput').value};}
+function run(keepGoals=false){try{const config=gatherConfig(); let bestResult=null,bestScore=Infinity; const trials=8; const errors=[]; for(let i=0;i<trials;i++){ try{ const candidate=generateSchedule(config,keepGoals,(appState.generation||0)+1+i); const score=evaluateResult(candidate); if(score<bestScore){ bestScore=score; bestResult=candidate; } } catch(inner){ errors.push(inner&&inner.stack?inner.stack:String(inner)); } } if(!bestResult) throw new Error(errors[0]||'all candidates failed'); const result=bestResult; appState={result,config,generation:(appState.generation||0)+trials}; renderStatus(result,config); renderCapacitySummary(result); renderRulesEditor(result); renderTable(result,config.month); renderCoverage(result,config.month); persistProfiles(); }catch(err){ document.getElementById('status').textContent='오류: '+(err&&err.stack?err.stack:err.message); }}
+function exportCurrentJson(){const data=JSON.stringify({config:appState.config,staff:appState.result.staff.map(s=>({id:s.id,name:s.name,role:s.role,goals:s.goals,requestRaw:s.requestRaw,profile:s.profile}))},null,2); const blob=new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nurse-schedule-config.json'; a.click(); URL.revokeObjectURL(url); }
+document.getElementById('sampleBtn').addEventListener('click',()=>{document.getElementById('staffInput').value=buildSampleStaff(); run();}); document.getElementById('clearBtn').addEventListener('click',()=>{document.getElementById('staffInput').value=buildSampleStaff(); try{localStorage.removeItem(STORAGE_KEY);}catch(e){} document.getElementById('tableWrap').innerHTML=''; document.getElementById('coverageWrap').innerHTML=''; document.getElementById('rulesWrap').innerHTML=''; document.getElementById('status').textContent='클리어됨. 다시 표 생성하면 새로 계산합니다.'; appState={result:null,config:null,generation:0};}); document.getElementById('generateBtn').addEventListener('click',()=>run(true)); document.getElementById('saveBtn').addEventListener('click',exportCurrentJson); if(!loadProfilesFromStorage()){document.getElementById('staffInput').value=buildSampleStaff();} run();
 </script>
 </body>
 </html>

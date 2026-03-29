@@ -247,6 +247,8 @@
             maxConsecutiveN: name === '서민경' ? 3 : 2,
             alQuota: 0,
             canN: !isSupport,
+            nonNightMain: preferred || '',
+            strictMain: false,
           },
           goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, 연: 0, WORK: 0 },
           assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assigned연: 0,
@@ -371,6 +373,8 @@
       score += staff[`assigned${code}`] * 6 || 0;
       if (staff.preferred === code) score -= 5;
       if (staff.profile.shiftMain === code) score -= 8;
+      if (staff.profile.nonNightMain === code && code !== 'N') score -= 10;
+      if (staff.profile.strictMain && staff.profile.nonNightMain && code !== 'N' && code !== staff.profile.nonNightMain) score += 18;
       if (staff.profile.dedicatedNight && code === 'N') score -= 20;
       if (staff.profile.dedicatedNight && code !== 'N') score += 30;
       if (staff.kind === 'support' && (code === 'D' || code === 'S')) score -= 6;
@@ -428,6 +432,14 @@
         s.goals.S = idx >= size - 5 ? Math.min(defaultS, s.goals.WORK) : 0;
         s.goals.E = s.role === 'HN' ? 0 : defaultE;
 
+        if (s.name === '임수영') {
+          s.profile.nonNightMain = 'E';
+          s.profile.strictMain = true;
+        }
+        if (s.name === '임윤정') {
+          s.profile.nonNightMain = 'D';
+          s.profile.strictMain = true;
+        }
         if (s.profile.dedicatedNight) {
           s.goals.N = Math.min(14, s.goals.WORK);
           s.goals.D = 0;
@@ -443,7 +455,7 @@
           s.goals.S = 0;
           s.goals.E = 0;
         } else if (!s.profile.dedicatedNight) {
-          const main = s.profile.shiftMain;
+          const main = s.profile.nonNightMain || s.profile.shiftMain;
           s.goals.D = 0;
           s.goals.S = s.profile.canS ? s.goals.S : 0;
           s.goals.E = 0;
@@ -663,6 +675,10 @@
           s.negativeOff += extra;
           s.goals.WORK = totalWorked;
         }
+        if (totalWorked < s.goals.WORK) {
+          const spare = s.goals.WORK - totalWorked;
+          s.assigned연 += spare;
+        }
       });
 
       const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet, shortageReasons, generation };
@@ -718,13 +734,15 @@
     }
 
     function renderRulesEditor(result) {
-      let html = '<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>canS</th><th>N전담</th><th>maxN연속</th><th>연 quota</th><th>canN</th></tr></thead><tbody>';
+      let html = '<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>비N주력</th><th>엄격</th><th>canS</th><th>N전담</th><th>maxN연속</th><th>연 quota</th><th>canN</th></tr></thead><tbody>';
       result.staff.forEach(s => {
         html += `<tr>
           <td>${s.name}</td>
           <td>${s.role}</td>
           <td><select class="rule-field" data-id="${s.id}" data-field="senior"><option value="true" ${s.profile.senior ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.senior ? 'selected' : ''}>N</option></select></td>
           <td><select class="rule-field" data-id="${s.id}" data-field="shiftMain">${['','D','S','E','N','mixed'].map(v => `<option value="${v}" ${s.profile.shiftMain===v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="nonNightMain">${['','D','E','S','mixed'].map(v => `<option value="${v}" ${s.profile.nonNightMain===v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="strictMain"><option value="true" ${s.profile.strictMain ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.strictMain ? 'selected' : ''}>N</option></select></td>
           <td><select class="rule-field" data-id="${s.id}" data-field="canS"><option value="true" ${s.profile.canS ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.canS ? 'selected' : ''}>N</option></select></td>
           <td><select class="rule-field" data-id="${s.id}" data-field="dedicatedNight"><option value="true" ${s.profile.dedicatedNight ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.dedicatedNight ? 'selected' : ''}>N</option></select></td>
           <td><input class="rule-field" data-id="${s.id}" data-field="maxConsecutiveN" value="${s.profile.maxConsecutiveN || 2}" /></td>

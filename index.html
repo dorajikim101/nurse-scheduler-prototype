@@ -350,12 +350,22 @@
       return metaDay.dow === 0 || metaDay.dow === 6 || metaDay.isHoliday;
     }
 
+    function consecutiveWorkedDays(schedule, staffId, day) {
+      let streak = 0;
+      for (let d = day - 1; d >= 1; d--) {
+        const v = schedule[staffId][d];
+        if (v && v !== 'OFF' && v !== '연') streak++;
+        else break;
+      }
+      return streak;
+    }
+
     function seededNoise(seed, a, b) {
       const x = Math.sin(seed * 997 + a * 131 + b * 17) * 10000;
       return x - Math.floor(x);
     }
 
-    function scoreCandidate(staff, code, day, topSeniorIds, metaDay = null, generation = 0) {
+    function scoreCandidate(staff, code, day, topSeniorIds, metaDay = null, generation = 0, schedule = null) {
       let score = 0;
       score += staff.id * 0.01;
       score += staff[`assigned${code}`] * 6 || 0;
@@ -369,6 +379,32 @@
       if (topSeniorIds.has(staff.id)) score -= 1;
       if (staff.role === 'HN' && code === 'D') score -= 30;
       if (code === 'N') score += staff.assignedN * 10;
+
+      if (schedule) {
+        const y1 = prevShift(schedule, staff.id, day, 1);
+        const y2 = prevShift(schedule, staff.id, day, 2);
+        const workedStreak = consecutiveWorkedDays(schedule, staff.id, day);
+
+        if (code === 'N') {
+          if (y1 === 'N' && y2 !== 'N') score -= 18; // 2일 블록 선호
+          if (y1 !== 'N') score += 8; // 단일 N 시작 비선호
+          if (staff.profile.dedicatedNight && y1 === 'N' && y2 === 'N') score -= 10; // 필요시 3연속이 1연속 분리보다 낫다
+        }
+
+        if (code === 'D' && y1 === 'E') score += 14; // E 다음 D 비선호
+        if (code === 'E' && y1 === 'N') score -= 10; // N-off 이후 E 선호를 위한 완화용 보너스
+        if (code === 'D' && y2 === 'N' && y1 === 'OFF') score += 8; // N 후 OFF 다음엔 D보다 E 선호
+        if (code === 'E' && y2 === 'N' && y1 === 'OFF') score -= 6;
+        if (code === 'E' && y1 === 'D') score -= 4; // D->E는 괜찮음
+
+        const wasOffYesterday = y1 === 'OFF' || y1 === '연';
+        const workedTwoDaysAgo = y2 && y2 !== 'OFF' && y2 !== '연';
+        if (wasOffYesterday && workedTwoDaysAgo && code !== 'OFF' && code !== '연') score += 8; // 하루 일하고 하루 쉬고 반복 비선호
+
+        if (workedStreak >= 5) score += 8; // 6일차 비선호
+        if (workedStreak >= 6) score += 20;
+      }
+
       score += seededNoise(generation + day, staff.id, code.charCodeAt(0)) * 3;
       return score;
     }
@@ -582,7 +618,7 @@
                 return aSupport - bSupport;
               });
             }
-            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m, generation) - scoreCandidate(b, code, m.day, topSeniorIds, m, generation));
+            candidates.sort((a,b) => scoreCandidate(a, code, m.day, topSeniorIds, m, generation, schedule) - scoreCandidate(b, code, m.day, topSeniorIds, m, generation, schedule));
             const chosen = candidates[0];
             if (!chosen) break;
             mark(schedule, chosen, m.day, code);

@@ -641,8 +641,15 @@
       return Object.entries(reasons).filter(([,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', ');
     }
 
-    function generateSchedule(config, keepGoals = false) {
-      const generation = (appState.generation || 0) + 1;
+    function evaluateResult(result) {
+      const shortagePenalty = (result.logs || []).length * 100;
+      const rulePenalty = (result.ruleWarnings || []).length * 30;
+      const negOffPenalty = (result.staff || []).reduce((sum, s) => sum + ((s.negativeOff || 0) * 10), 0);
+      return shortagePenalty + rulePenalty + negOffPenalty;
+    }
+
+    function generateSchedule(config, keepGoals = false, generationOverride = null) {
+      const generation = generationOverride ?? ((appState.generation || 0) + 1);
       const coreStaff = parseStaff(config.staffInput, 'core');
       const supportStaff = [];
       const staff = [...coreStaff];
@@ -885,7 +892,8 @@
     function renderStatus(result, config) {
       const lines = [];
       lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`);
-      lines.push(`조합 시도: ${result.generation || 1}`);
+      lines.push(`선택된 조합 seed: ${result.generation || 1}`);
+      lines.push('내부 탐색: 8개 조합 중 최선안 선택');
       lines.push(`인원: ${result.staff.length}명`);
       lines.push(`커버 주의: ${result.logs.length}건`);
       lines.push(`규칙 경고: ${(result.ruleWarnings || []).length}건`);
@@ -1019,8 +1027,19 @@
     function run(keepGoals = false) {
       try {
         const config = gatherConfig();
-        const result = generateSchedule(config, keepGoals);
-        appState = { result, config, generation: appState.generation + 1 };
+        let bestResult = null;
+        let bestScore = Infinity;
+        const trials = 8;
+        for (let i = 0; i < trials; i++) {
+          const candidate = generateSchedule(config, keepGoals, (appState.generation || 0) + 1 + i);
+          const score = evaluateResult(candidate);
+          if (score < bestScore) {
+            bestScore = score;
+            bestResult = candidate;
+          }
+        }
+        const result = bestResult;
+        appState = { result, config, generation: (appState.generation || 0) + trials };
         renderStatus(result, config);
         renderCapacitySummary(result, config);
         renderRulesEditor(result);

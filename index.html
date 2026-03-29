@@ -65,7 +65,7 @@
     .shift-E { background: #f8f0ff; }
     .shift-N { background: #f1f5f9; }
     .shift-S { background: #fff8db; }
-    .shift-OFF, .shift-AL { background: #f7f7f7; }
+    .shift-OFF, .shift-연 { background: #f7f7f7; }
     .small { font-size: 11px; color: var(--muted); }
     .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; }
     .legend span { border: 1px solid var(--line); padding: 2px 6px; background: #fff; }
@@ -141,7 +141,7 @@
 
         <div class="section">
           <h2>사람별 규칙 편집</h2>
-          <div class="hint">생성 후 senior / main shift / canS / N전담 / 최대연속N / AL quota / canN 수정 가능</div>
+          <div class="hint">생성 후 senior / main shift / canS / N전담 / 최대연속N / 연 quota / canN 수정 가능</div>
           <div id="rulesWrap" class="table-wrap"></div>
         </div>
       </div>
@@ -165,7 +165,7 @@
             <span class="shift-E">E</span>
             <span class="shift-N">N</span>
             <span class="shift-OFF">OFF</span>
-            <span class="shift-AL">AL</span>
+            <span class="shift-연">연</span>
             <span class="warn-soft subtle">주의(부족/초과)</span>
           </div>
           <div id="tableWrap" class="table-wrap"></div>
@@ -248,8 +248,8 @@
             alQuota: 0,
             canN: !isSupport,
           },
-          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0, WORK: 0 },
-          assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
+          goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, 연: 0, WORK: 0 },
+          assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assigned연: 0,
           negativeOff: 0,
         };
       }).sort((a,b) => a.id - b.id);
@@ -300,11 +300,11 @@
       else if (code === 'E') staff.assignedE++;
       else if (code === 'N') staff.assignedN++;
       else if (code === 'OFF') staff.assignedOFF++;
-      else if (code === 'AL') staff.assignedAL++;
+      else if (code === '연') staff.assigned연++;
     }
 
     function resetAssigned(staff) {
-      staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; s.negativeOff = 0; });
+      staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assigned연 = 0; s.negativeOff = 0; });
     }
 
     function canAssign(staff, code, day, schedule, meta, config, bottomSIds) {
@@ -312,14 +312,14 @@
       const metaDay = meta.find(m => m.day === day);
       const fixed = blockedByFixedRule(staff, metaDay);
       if (fixed && code !== fixed) return false;
-      if (staff.role === 'HN' && !['D','OFF','AL'].includes(code)) return false;
-      if (staff.kind === 'support' && !['D','S','OFF','AL'].includes(code)) return false;
+      if (staff.role === 'HN' && !['D','OFF','연'].includes(code)) return false;
+      if (staff.kind === 'support' && !['D','S','OFF','연'].includes(code)) return false;
       if (code === 'S' && (!bottomSIds.has(staff.id) || staff.profile.canS === false)) return false;
       if (code === 'N' && (!staff.profile.canN || staff.assignedN >= staff.goals.N)) return false;
       if (code === 'D' && staff.goals.D && staff.assignedD >= staff.goals.D) return false;
       if (code === 'S' && staff.goals.S && staff.assignedS >= staff.goals.S) return false;
       if (code === 'E' && staff.goals.E && staff.assignedE >= staff.goals.E) return false;
-      if (staff.profile.dedicatedNight && code !== 'N' && code !== 'OFF' && code !== 'AL') return false;
+      if (staff.profile.dedicatedNight && code !== 'N' && code !== 'OFF' && code !== '연') return false;
 
       const y1 = prevShift(schedule, staff.id, day, 1);
       const y2 = prevShift(schedule, staff.id, day, 2);
@@ -338,7 +338,7 @@
         if (streak >= (staff.profile.maxConsecutiveN || 2)) return false;
       }
       const y3 = prevShift(schedule, staff.id, day, 3);
-      if (code !== 'OFF' && code !== 'AL' && y1 === 'N') {
+      if (code !== 'OFF' && code !== '연' && y1 === 'N') {
         if (!(staff.profile.dedicatedNight && y2 === 'N' && y3 !== 'N')) return false;
       }
       if (staff.kind === 'support' && (code === 'E' || code === 'N')) return false;
@@ -384,8 +384,8 @@
       const offBase = baseOffCount(meta);
       staff.forEach((s, idx) => {
         s.goals.OFF = offBase;
-        s.goals.AL = s.profile.alQuota || 0;
-        s.goals.WORK = totalDays - s.goals.OFF - s.goals.AL;
+        s.goals.연 = s.profile.alQuota || 0;
+        s.goals.WORK = totalDays - s.goals.OFF - s.goals.연;
         if (s.goals.WORK < 0) s.goals.WORK = 0;
 
         s.goals.D = s.role === 'HN' ? Math.min(s.goals.WORK, Math.floor(totalDays * 0.62)) : defaultD;
@@ -449,7 +449,7 @@
     }
 
     function coverageForDay(staff, schedule, day, metaDay = null) {
-      const c = { D:0, S:0, E:0, N:0, OFF:0, AL:0 };
+      const c = { D:0, S:0, E:0, N:0, OFF:0, 연:0 };
       staff.forEach(s => { const v = schedule[s.id][day]; if (c[v] !== undefined) c[v]++; });
       if (metaDay && metaDay.req.S === 1) {
         c.DLike = c.D + c.S;
@@ -476,11 +476,11 @@
           if (streak >= 3) warnings.push(`경고: ${s.name} ${config.month}/${m.day} 기준 N ${streak}연속`);
           if (result.schedule[s.id][m.day] === 'N') {
             const next = result.schedule[s.id][m.day + 1];
-            if (next && next !== 'OFF' && next !== 'AL') warnings.push(`경고: ${s.name} ${config.month}/${m.day} N 다음날 OFF 아님`);
+            if (next && next !== 'OFF' && next !== '연') warnings.push(`경고: ${s.name} ${config.month}/${m.day} N 다음날 OFF 아님`);
           }
           const y1 = prevShift(result.schedule, s.id, m.day, 1);
           const y2 = prevShift(result.schedule, s.id, m.day, 2);
-          if ((y1 === 'N' && y2 === 'N') && result.schedule[s.id][m.day] !== 'OFF' && result.schedule[s.id][m.day] !== 'AL') {
+          if ((y1 === 'N' && y2 === 'N') && result.schedule[s.id][m.day] !== 'OFF' && result.schedule[s.id][m.day] !== '연') {
             warnings.push(`경고: ${s.name} ${config.month}/${m.day} N연속 후 OFF2 규칙 위반`);
           }
         });
@@ -495,8 +495,8 @@
         const metaDay = meta.find(m => m.day === day);
         const fixed = blockedByFixedRule(s, metaDay);
         if (fixed && code !== fixed) { reasons.fixedOff++; return; }
-        if (s.role === 'HN' && !['D','OFF','AL'].includes(code)) { reasons.hnRule++; return; }
-        if (s.kind === 'support' && !['D','S','OFF','AL'].includes(code)) { reasons.supportRole++; return; }
+        if (s.role === 'HN' && !['D','OFF','연'].includes(code)) { reasons.hnRule++; return; }
+        if (s.kind === 'support' && !['D','S','OFF','연'].includes(code)) { reasons.supportRole++; return; }
         if (code === 'S' && (!bottomSIds.has(s.id) || s.profile.canS === false)) { reasons.cannotS++; return; }
         if (code === 'N' && (!s.profile.canN || s.assignedN >= s.goals.N)) { reasons.cannotN++; return; }
         if (code === 'D' && s.goals.D && s.assignedD >= s.goals.D) { reasons.goalCap++; return; }
@@ -504,7 +504,7 @@
         if (code === 'E' && s.goals.E && s.assignedE >= s.goals.E) { reasons.goalCap++; return; }
         const y1 = prevShift(schedule, s.id, day, 1);
         if ((code === 'D' || code === 'S') && y1 === 'E') { reasons.eToD++; return; }
-        if (code !== 'OFF' && code !== 'AL' && y1 === 'N') { reasons.nightRest++; return; }
+        if (code !== 'OFF' && code !== '연' && y1 === 'N') { reasons.nightRest++; return; }
         if (s.request.avoid[code] && s.request.avoid[code].has(day)) { reasons.avoid++; return; }
         if (code === 'N') {
           let streak = 0;
@@ -552,7 +552,7 @@
           const y2 = prevShift(schedule, s.id, m.day, 2);
           const y3 = prevShift(schedule, s.id, m.day, 3);
           if (y1 === 'N' && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
-          if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+          if ((y1 === 'OFF' || y1 === '연') && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
           if (y1 === 'N' && !s.profile.dedicatedNight) { mark(schedule, s, m.day, 'OFF'); continue; }
         }
 
@@ -616,11 +616,11 @@
       }
 
       staff.forEach(s => {
-        const totalRest = s.assignedOFF + s.assignedAL;
-        const targetRest = (s.goals.OFF || 0) + (s.goals.AL || 0);
+        const totalRest = s.assignedOFF + s.assigned연;
+        const targetRest = (s.goals.OFF || 0) + (s.goals.연 || 0);
         const totalWorked = s.assignedD + s.assignedS + s.assignedE + s.assignedN;
         s.negativeOff = Math.max(0, targetRest - totalRest);
-        s.goals.WORK = meta.length - (s.goals.OFF || 0) - (s.goals.AL || 0);
+        s.goals.WORK = meta.length - (s.goals.OFF || 0) - (s.goals.연 || 0);
 
         if (totalWorked > s.goals.WORK) {
           let extra = totalWorked - s.goals.WORK;
@@ -656,8 +656,8 @@
       html += '</tr></thead><tbody>';
 
       result.staff.forEach(s => {
-        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0} WORK:${s.goals.WORK || 0}`;
-        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL} -OFF:${s.negativeOff || 0}`;
+        const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} 연:${s.goals.연 || 0} WORK:${s.goals.WORK || 0}`;
+        const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} 연:${s.assigned연} -OFF:${s.negativeOff || 0}`;
         const rowStyle = s.kind === 'support' ? ' style="background:#f9fafb"' : '';
         html += `<tr${rowStyle}>
           <td class="sticky name-col mono">${s.name}</td>
@@ -671,7 +671,7 @@
           const v = result.schedule[s.id][m.day] || '';
           const warn = ['D','S','E','N'].includes(v) ? cellWarnClass(result, m.day, v) : '';
           html += `<td class="shift-${v} ${warn}"><select class="cell-select" data-id="${s.id}" data-day="${m.day}">
-            ${['','D','S','E','N','OFF','AL'].map(opt => `<option value="${opt}" ${opt===v?'selected':''}>${opt}</option>`).join('')}
+            ${['','D','S','E','N','OFF','연'].map(opt => `<option value="${opt}" ${opt===v?'selected':''}>${opt}</option>`).join('')}
           </select></td>`;
         });
         html += '</tr>';
@@ -682,7 +682,7 @@
     }
 
     function renderRulesEditor(result) {
-      let html = '<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>canS</th><th>N전담</th><th>maxN연속</th><th>AL quota</th><th>canN</th></tr></thead><tbody>';
+      let html = '<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>canS</th><th>N전담</th><th>maxN연속</th><th>연 quota</th><th>canN</th></tr></thead><tbody>';
       result.staff.forEach(s => {
         html += `<tr>
           <td>${s.name}</td>
@@ -766,7 +766,7 @@
     }
 
     function parseGoalText(text) {
-      const goal = { D:0, S:0, E:0, N:0, OFF:0, AL:0, WORK:0 };
+      const goal = { D:0, S:0, E:0, N:0, OFF:0, 연:0, WORK:0 };
       String(text).split(/\s+/).forEach(token => {
         const [k,v] = token.split(':');
         if (goal[k] !== undefined) goal[k] = Number(v || 0);
@@ -775,7 +775,7 @@
     }
 
     function recalcAssignedFromSchedule(result) {
-      result.staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assignedAL = 0; });
+      result.staff.forEach(s => { s.assignedD = 0; s.assignedS = 0; s.assignedE = 0; s.assignedN = 0; s.assignedOFF = 0; s.assigned연 = 0; });
       result.staff.forEach(s => {
         result.meta.forEach(m => {
           const v = result.schedule[s.id][m.day];
@@ -784,7 +784,7 @@
           else if (v === 'E') s.assignedE++;
           else if (v === 'N') s.assignedN++;
           else if (v === 'OFF') s.assignedOFF++;
-          else if (v === 'AL') s.assignedAL++;
+          else if (v === '연') s.assigned연++;
         });
       });
     }
@@ -854,7 +854,7 @@
           else if (v === 'false') v = false;
           else if (!Number.isNaN(Number(v)) && ['maxConsecutiveN','alQuota'].includes(field)) v = Number(v);
           s.profile[field] = v;
-          if (field === 'alQuota') s.goals.AL = Number(v || 0);
+          if (field === 'alQuota') s.goals.연 = Number(v || 0);
           renderStatus(appState.result, appState.config);
           run(true);
           persistProfiles();

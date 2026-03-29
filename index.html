@@ -278,18 +278,13 @@
 
       const y1 = prevShift(schedule, staff.id, day, 1);
       const y2 = prevShift(schedule, staff.id, day, 2);
-      const y3 = prevShift(schedule, staff.id, day, 3);
 
       if ((code === 'D' || code === 'S') && y1 === 'E') return false;
       if (code === 'D' && y1 === 'N') return false;
       if (code === 'S' && y1 === 'N') return false;
       if (code === 'E' && y1 === 'N') return false;
-      if (code === 'N') {
-        if (y1 === 'E') return false;
-        if (y1 === 'N' && y2 === 'N') return false;
-      }
-      if ((y1 === 'N' && y2 === 'N') && !['OFF','AL'].includes(code)) return false;
-      if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N' && !['OFF','AL'].includes(code)) return false;
+      if (code === 'N' && y1 === 'E') return false;
+      if (code !== 'OFF' && code !== 'AL' && y1 === 'N') return false;
       if (staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false;
       return true;
     }
@@ -323,10 +318,44 @@
       });
     }
 
-    function coverageForDay(staff, schedule, day) {
+    function coverageForDay(staff, schedule, day, metaDay = null) {
       const c = { D:0, S:0, E:0, N:0, OFF:0, AL:0 };
       staff.forEach(s => { const v = schedule[s.id][day]; if (c[v] !== undefined) c[v]++; });
+      if (metaDay && metaDay.req.S === 1) {
+        c.DLike = c.D + c.S;
+      } else {
+        c.DLike = c.D;
+      }
       return c;
+    }
+
+    function nightStreak(schedule, staffId, day) {
+      let streak = 0;
+      for (let d = day; d >= 1; d--) {
+        if (schedule[staffId][d] === 'N') streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    function collectRuleWarnings(result, config) {
+      const warnings = [...result.logs];
+      result.staff.forEach(s => {
+        result.meta.forEach(m => {
+          const streak = nightStreak(result.schedule, s.id, m.day);
+          if (streak >= 3) warnings.push(`경고: ${s.name} ${config.month}/${m.day} 기준 N ${streak}연속`);
+          if (result.schedule[s.id][m.day] === 'N') {
+            const next = result.schedule[s.id][m.day + 1];
+            if (next && next !== 'OFF' && next !== 'AL') warnings.push(`경고: ${s.name} ${config.month}/${m.day} N 다음날 OFF 아님`);
+          }
+          const y1 = prevShift(result.schedule, s.id, m.day, 1);
+          const y2 = prevShift(result.schedule, s.id, m.day, 2);
+          if ((y1 === 'N' && y2 === 'N') && result.schedule[s.id][m.day] !== 'OFF' && result.schedule[s.id][m.day] !== 'AL') {
+            warnings.push(`경고: ${s.name} ${config.month}/${m.day} N연속 후 OFF2 규칙 위반`);
+          }
+        });
+      });
+      return warnings;
     }
 
     function generateSchedule(config, keepGoals = false) {
@@ -359,9 +388,9 @@
           const y1 = prevShift(schedule, s.id, m.day, 1);
           const y2 = prevShift(schedule, s.id, m.day, 2);
           const y3 = prevShift(schedule, s.id, m.day, 3);
-          if (y1 === 'N' && canAssign(s, 'N', m.day, schedule, meta, config, bottomSIds)) { mark(schedule, s, m.day, 'N'); continue; }
           if (y1 === 'N' && y2 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
           if ((y1 === 'OFF' || y1 === 'AL') && y2 === 'N' && y3 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
+          if (y1 === 'N') { mark(schedule, s, m.day, 'OFF'); continue; }
         }
 
         const req = { ...m.req };
@@ -392,16 +421,27 @@
           const team = staff.filter(s => ['D','S'].includes(schedule[s.id][m.day])).map(s => s.id);
           if (!team.some(id => topSeniorIds.has(id))) logs.push(`경고: ${config.month}/${m.day} 주간 3인조에 상위 4명 미포함`);
         }
-        const c = coverageForDay(staff, schedule, m.day);
-        ['D','S','E','N'].forEach(code => { if (c[code] !== req[code]) logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`); });
+        const c = coverageForDay(staff, schedule, m.day, m);
+        if (m.req.S === 1) {
+          if (c.DLike < (req.D + req.S)) logs.push(`주의: ${config.month}/${m.day} 주간부족 D/S ${c.D}+${c.S}/${req.D}+${req.S}`);
+          if (c.DLike > (req.D + req.S)) logs.push(`주의: ${config.month}/${m.day} 주간초과 D/S ${c.D}+${c.S}/${req.D}+${req.S}`);
+        } else {
+          if (c.D !== req.D) logs.push(`주의: ${config.month}/${m.day} D ${c.D}/${req.D}`);
+          if (c.S !== req.S) logs.push(`주의: ${config.month}/${m.day} S ${c.S}/${req.S}`);
+        }
+        ['E','N'].forEach(code => { if (c[code] !== req[code]) logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`); });
       }
 
-      return { staff, meta, schedule, logs, holidaysSet };
+      const result = { staff, meta, schedule, logs, holidaysSet };
+      result.ruleWarnings = collectRuleWarnings(result, config);
+      return result;
     }
 
     function cellWarnClass(result, day, code) {
       const m = result.meta.find(x => x.day === day);
-      const c = coverageForDay(result.staff, result.schedule, day);
+      const c = coverageForDay(result.staff, result.schedule, day, m);
+      if (code === 'N') return c.N !== 2 ? 'warn-soft subtle' : '';
+      if ((code === 'D' || code === 'S') && m.req.S === 1) return c.DLike !== (m.req.D + m.req.S) ? 'warn-soft subtle' : '';
       return c[code] !== m.req[code] ? 'warn-soft subtle' : '';
     }
 
@@ -446,14 +486,23 @@
     function renderCoverage(result, month) {
       let html = '<table><thead><tr><th>일자</th><th>요일</th><th>필요 D</th><th>필요 S</th><th>필요 E</th><th>필요 N</th><th>배정 D</th><th>배정 S</th><th>배정 E</th><th>배정 N</th><th>비고</th></tr></thead><tbody>';
       result.meta.forEach(m => {
-        const c = coverageForDay(result.staff, result.schedule, m.day);
+        const c = coverageForDay(result.staff, result.schedule, m.day, m);
         const issues = [];
-        ['D','S','E','N'].forEach(code => {
-          if (c[code] < m.req[code]) issues.push(`${code} 부족`);
-          if (c[code] > m.req[code]) issues.push(`${code} 초과`);
-        });
+        if (m.req.S === 1) {
+          if (c.DLike < (m.req.D + m.req.S)) issues.push('주간 부족');
+          if (c.DLike > (m.req.D + m.req.S)) issues.push('주간 초과');
+        } else {
+          if (c.D < m.req.D) issues.push('D 부족');
+          if (c.D > m.req.D) issues.push('D 초과');
+          if (c.S < m.req.S) issues.push('S 부족');
+          if (c.S > m.req.S) issues.push('S 초과');
+        }
+        if (c.E < m.req.E) issues.push('E 부족');
+        if (c.E > m.req.E) issues.push('E 초과');
+        if (c.N < 2) issues.push('N 부족');
+        if (c.N > 2) issues.push('N 초과');
         const cls = issues.length ? 'warn-soft subtle' : '';
-        html += `<tr class="${cls}"><td>${month}/${m.day}</td><td>${m.dowName}</td><td>${m.req.D}</td><td>${m.req.S}</td><td>${m.req.E}</td><td>${m.req.N}</td><td>${c.D}</td><td>${c.S}</td><td>${c.E}</td><td>${c.N}</td><td>${issues.join(', ')}</td></tr>`;
+        html += `<tr class="${cls}"><td>${month}/${m.day}</td><td>${m.dowName}</td><td>${m.req.D}</td><td>${m.req.S}</td><td>${m.req.E}</td><td>2</td><td>${c.D}</td><td>${c.S}</td><td>${c.E}</td><td>${c.N}</td><td>${issues.join(', ')}</td></tr>`;
       });
       html += '</tbody></table>';
       document.getElementById('coverageWrap').innerHTML = html;
@@ -463,8 +512,16 @@
       const lines = [];
       lines.push(`${config.year}-${String(config.month).padStart(2,'0')} 스케줄`);
       lines.push(`인원: ${result.staff.length}명`);
-      lines.push(`주의: ${result.logs.length}건`);
-      if (result.logs.length) lines.push(result.logs.slice(0, 20).join('\n'));
+      lines.push(`커버 주의: ${result.logs.length}건`);
+      lines.push(`규칙 경고: ${(result.ruleWarnings || []).length}건`);
+      if (result.logs.length) {
+        lines.push('--- 커버 주의 ---');
+        lines.push(result.logs.slice(0, 12).join('\n'));
+      }
+      if (result.ruleWarnings && result.ruleWarnings.length) {
+        lines.push('--- 규칙 경고 ---');
+        lines.push(result.ruleWarnings.slice(0, 12).join('\n'));
+      }
       lines.push('표의 목표치/리퀘스트/셀은 직접 수정 가능. 셀 수정 후 저장하거나 다시 계산하세요.');
       document.getElementById('status').textContent = lines.join('\n');
     }

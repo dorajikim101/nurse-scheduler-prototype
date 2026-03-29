@@ -116,6 +116,12 @@
         </div>
 
         <div class="section">
+          <h2>지원/AN 인력</h2>
+          <div class="hint">형식 동일. role은 AN 권장. 기본적으로 N에는 배치하지 않음.</div>
+          <textarea id="supportInput"></textarea>
+        </div>
+
+        <div class="section">
           <h2>참고 원칙</h2>
           <div class="hint">
             - 월/금: D3 E3 N2<br/>
@@ -134,6 +140,12 @@
           <button class="primary" id="generateBtn">표 생성 / 다시 계산</button>
           <button id="sampleBtn">샘플 불러오기</button>
           <button id="saveBtn">현재 입력 JSON 저장</button>
+        </div>
+
+        <div class="section">
+          <h2>사람별 규칙 편집</h2>
+          <div class="hint">생성 후 senior / main shift / canS / N전담 / 최대연속N / AL quota / canN 수정 가능</div>
+          <div id="rulesWrap" class="table-wrap"></div>
         </div>
       </div>
 
@@ -185,6 +197,13 @@
       return rows.join('\n');
     }
 
+    function buildSampleSupportStaff() {
+      const rows = [];
+      rows.push('101,AN지원1,AN,0,S,,,');
+      rows.push('102,AN지원2,AN,0,D,,,');
+      return rows.join('\n');
+    }
+
     function getDailyRequirement(date, holidaysSet) {
       const dow = date.getDay();
       const day = date.getDate();
@@ -208,23 +227,29 @@
       return req;
     }
 
-    function parseStaff(text) {
+    function parseStaff(text, kind='core') {
       return text.split(/\n+/).map(line => line.trim()).filter(Boolean).map(line => {
         const [id, name, role='RN', maxN='0', preferred='', blocked='', request=''] = line.split(',').map(v => (v || '').trim());
         const personId = Number(id);
+        const isSupport = kind === 'support' || role === 'AN';
         return {
           id: personId,
           name: name || id,
           role,
+          kind,
           maxN: Number(maxN || 0),
           preferred,
           blockedDays: blocked ? blocked.split('|').map(v => v.trim()).filter(Boolean) : [],
           requestRaw: request,
           request: parseRequest(request),
           profile: {
-            senior: personId <= 6,
-            shiftMain: preferred || '',
+            senior: isSupport ? false : personId <= 6,
+            shiftMain: preferred || (isSupport ? 'S' : ''),
             dedicatedNight: name === '서민경',
+            canS: isSupport ? true : personId >= 9,
+            maxConsecutiveN: name === '서민경' ? 3 : 2,
+            alQuota: 0,
+            canN: !isSupport,
           },
           goals: { D: 0, S: 0, E: 0, N: Number(maxN || 0), OFF: 0, AL: 0 },
           assignedD: 0, assignedS: 0, assignedE: 0, assignedN: 0, assignedOFF: 0, assignedAL: 0,
@@ -280,8 +305,8 @@
       const fixed = blockedByFixedRule(staff, metaDay);
       if (fixed && code !== fixed) return false;
       if (staff.role === 'HN' && !['D','OFF','AL'].includes(code)) return false;
-      if (code === 'S' && !bottomSIds.has(staff.id)) return false;
-      if (code === 'N' && staff.assignedN >= staff.goals.N) return false;
+      if (code === 'S' && (!bottomSIds.has(staff.id) || staff.profile.canS === false)) return false;
+      if (code === 'N' && (!staff.profile.canN || staff.assignedN >= staff.goals.N)) return false;
       if (code === 'D' && staff.goals.D && staff.assignedD >= staff.goals.D) return false;
       if (code === 'S' && staff.goals.S && staff.assignedS >= staff.goals.S) return false;
       if (code === 'E' && staff.goals.E && staff.assignedE >= staff.goals.E) return false;
@@ -295,6 +320,14 @@
       if (code === 'S' && y1 === 'N') return false;
       if (code === 'E' && y1 === 'N') return false;
       if (code === 'N' && y1 === 'E') return false;
+      if (code === 'N') {
+        let streak = 0;
+        for (let d = day - 1; d >= 1; d--) {
+          if (schedule[staff.id][d] === 'N') streak++;
+          else break;
+        }
+        if (streak >= (staff.profile.maxConsecutiveN || 2)) return false;
+      }
       if (code !== 'OFF' && code !== 'AL' && y1 === 'N') return false;
       if (staff.request.avoid[code] && staff.request.avoid[code].has(day)) return false;
       return true;
@@ -309,6 +342,9 @@
       score += staff.id * 0.01;
       score += staff[`assigned${code}`] * 6 || 0;
       if (staff.preferred === code) score -= 5;
+      if (staff.profile.shiftMain === code) score -= 8;
+      if (staff.profile.dedicatedNight && code === 'N') score -= 20;
+      if (staff.profile.dedicatedNight && code !== 'N') score += 30;
       if (staff.request.prefer[code] && staff.request.prefer[code].has(day)) score -= 10;
       if (topSeniorIds.has(staff.id)) score -= 1;
       if (staff.role === 'HN' && code === 'D') score -= 30;
@@ -328,12 +364,19 @@
         s.goals.D = s.role === 'HN' ? Math.floor(totalDays * 0.62) : defaultD;
         s.goals.S = idx >= size - 5 ? defaultS : 0;
         s.goals.E = s.role === 'HN' ? 0 : defaultE;
+        if (s.kind === 'support') {
+          s.goals.D = 3;
+          s.goals.S = 6;
+          s.goals.E = 0;
+          s.goals.N = 0;
+        }
         if (s.profile.dedicatedNight) {
           s.goals.N = 14;
           s.goals.D = 0;
           s.goals.S = 0;
           s.goals.E = 0;
         }
+        s.goals.AL = s.profile.alQuota || 0;
         s.goals.OFF = totalDays - (s.goals.D + s.goals.S + s.goals.E + s.goals.N);
         if (s.goals.OFF < 0) s.goals.OFF = 0;
       });
@@ -380,12 +423,14 @@
     }
 
     function generateSchedule(config, keepGoals = false) {
-      const staff = parseStaff(config.staffInput);
+      const coreStaff = parseStaff(config.staffInput, 'core');
+      const supportStaff = parseStaff(config.supportInput || '', 'support');
+      const staff = [...coreStaff, ...supportStaff];
       const holidaysSet = new Set((config.holidays || '').split(',').map(v => Number(v.trim())).filter(Boolean));
       const meta = dayMeta(config.year, config.month, holidaysSet);
       const schedule = initSchedule(staff, meta);
-      const topSeniorIds = new Set(staff.slice(0, config.seniorTopCount).map(s => s.id));
-      const bottomSIds = new Set(staff.slice(-config.sBottomCount).map(s => s.id));
+      const topSeniorIds = new Set(staff.filter(s => s.profile.senior).map(s => s.id));
+      const bottomSIds = new Set(staff.filter(s => s.profile.canS).map(s => s.id));
       const logs = [];
       assignMonthlyGoals(staff, meta);
       if (keepGoals && appState.result) {
@@ -419,7 +464,7 @@
         for (const code of ['N','E','S','D']) {
           while (assigned[code].length < req[code]) {
             let candidates = staff.filter(s => canAssign(s, code, m.day, schedule, meta, config, bottomSIds));
-            if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN');
+            if (code === 'N') candidates = candidates.filter(s => s.role !== 'HN' && s.profile.canN !== false);
             if (code === 'S') candidates = candidates.filter(s => bottomSIds.has(s.id));
 
             const weekendEException = code === 'E' && isWeekendMeta(m);
@@ -457,7 +502,7 @@
         ['E','N'].forEach(code => { if (c[code] !== req[code]) logs.push(`주의: ${config.month}/${m.day} ${code} ${c[code]}/${req[code]}`); });
       }
 
-      const result = { staff, meta, schedule, logs, holidaysSet };
+      const result = { staff, coreStaff, supportStaff, meta, schedule, logs, holidaysSet };
       result.ruleWarnings = collectRuleWarnings(result, config);
       return result;
     }
@@ -486,7 +531,8 @@
       result.staff.forEach(s => {
         const goalText = `D:${s.goals.D} S:${s.goals.S} E:${s.goals.E} N:${s.goals.N} OFF:${s.goals.OFF} AL:${s.goals.AL || 0}`;
         const actualText = `D:${s.assignedD} S:${s.assignedS} E:${s.assignedE} N:${s.assignedN} OFF:${s.assignedOFF} AL:${s.assignedAL}`;
-        html += `<tr>
+        const rowStyle = s.kind === 'support' ? ' style="background:#f9fafb"' : '';
+        html += `<tr${rowStyle}>
           <td class="sticky name-col mono">${s.name}</td>
           <td class="sticky2 meta-col">${s.role}</td>
           <td class="sticky3 goal-col" data-id="${s.id}">
@@ -506,6 +552,25 @@
       html += '</tbody></table>';
       document.getElementById('tableWrap').innerHTML = html;
       bindInteractiveTable();
+    }
+
+    function renderRulesEditor(result) {
+      let html = '<table><thead><tr><th>이름</th><th>role</th><th>senior</th><th>main</th><th>canS</th><th>N전담</th><th>maxN연속</th><th>AL quota</th><th>canN</th></tr></thead><tbody>';
+      result.staff.forEach(s => {
+        html += `<tr>
+          <td>${s.name}</td>
+          <td>${s.role}</td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="senior"><option value="true" ${s.profile.senior ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.senior ? 'selected' : ''}>N</option></select></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="shiftMain">${['','D','S','E','N','mixed'].map(v => `<option value="${v}" ${s.profile.shiftMain===v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="canS"><option value="true" ${s.profile.canS ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.canS ? 'selected' : ''}>N</option></select></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="dedicatedNight"><option value="true" ${s.profile.dedicatedNight ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.dedicatedNight ? 'selected' : ''}>N</option></select></td>
+          <td><input class="rule-field" data-id="${s.id}" data-field="maxConsecutiveN" value="${s.profile.maxConsecutiveN || 2}" /></td>
+          <td><input class="rule-field" data-id="${s.id}" data-field="alQuota" value="${s.profile.alQuota || 0}" /></td>
+          <td><select class="rule-field" data-id="${s.id}" data-field="canN"><option value="true" ${s.profile.canN ? 'selected' : ''}>Y</option><option value="false" ${!s.profile.canN ? 'selected' : ''}>N</option></select></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      document.getElementById('rulesWrap').innerHTML = html;
     }
 
     function renderCoverage(result, month) {
@@ -604,6 +669,20 @@
           renderStatus(appState.result, appState.config);
         });
       });
+      document.querySelectorAll('.rule-field').forEach(el => {
+        el.addEventListener('change', e => {
+          const id = Number(e.target.dataset.id);
+          const field = e.target.dataset.field;
+          const s = appState.result.staff.find(x => x.id === id);
+          let v = e.target.value;
+          if (v === 'true') v = true;
+          else if (v === 'false') v = false;
+          else if (!Number.isNaN(Number(v)) && ['maxConsecutiveN','alQuota'].includes(field)) v = Number(v);
+          s.profile[field] = v;
+          if (field === 'alQuota') s.goals.AL = Number(v || 0);
+          renderStatus(appState.result, appState.config);
+        });
+      });
     }
 
     function gatherConfig() {
@@ -612,6 +691,7 @@
         month: Number(document.getElementById('month').value),
         staffCount: Number(document.getElementById('staffCount').value),
         holidays: document.getElementById('holidays').value,
+        supportInput: document.getElementById('supportInput').value,
         nBlock: Number(document.getElementById('nBlock').value),
         offAfterN: Number(document.getElementById('offAfterN').value),
         sBottomCount: Number(document.getElementById('sBottomCount').value),
@@ -626,6 +706,7 @@
         const result = generateSchedule(config, keepGoals);
         appState = { result, config };
         renderStatus(result, config);
+        renderRulesEditor(result);
         renderTable(result, config.month);
         renderCoverage(result, config.month);
       } catch (err) {
@@ -646,12 +727,14 @@
 
     document.getElementById('sampleBtn').addEventListener('click', () => {
       document.getElementById('staffInput').value = buildSampleStaff();
+      document.getElementById('supportInput').value = buildSampleSupportStaff();
       run();
     });
     document.getElementById('generateBtn').addEventListener('click', () => run(true));
     document.getElementById('saveBtn').addEventListener('click', exportCurrentJson);
 
     document.getElementById('staffInput').value = buildSampleStaff();
+    document.getElementById('supportInput').value = buildSampleSupportStaff();
     run();
   </script>
 </body>
